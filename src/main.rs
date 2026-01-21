@@ -1,6 +1,9 @@
 use anyhow::{Result, bail};
 use std::fs::File;
 use std::io::prelude::*;
+use crate::dbinfo::DBInfo;
+
+pub mod dbinfo;
 
 fn main() -> Result<()> {
     // Parse arguments
@@ -13,19 +16,14 @@ fn main() -> Result<()> {
 
     // Parse command and act accordingly
     let command = &args[2];
+    let mut file = File::open(&args[1])?;
     match command.as_str() {
         ".dbinfo" => {
-            let mut file = File::open(&args[1])?;
-            let mut header = [0; 100];
+            let mut header = [0; 112];
             file.read_exact(&mut header)?;
+            let dbinfo = DBInfo::new(&header);
+            dbinfo.print();
 
-            // The page size is stored at the 16th byte offset, using 2 bytes in big-endian order
-            let page_size = u16::from_be_bytes([header[16], header[17]]);
-
-            // You can use print statements as follows for debugging, they'll be visible when running tests.
-            eprintln!("Logs from your program will appear here!");
-
-            println!("database page size: {}", page_size);
         }
         _ => bail!("Missing or invalid command passed: {}", command),
     }
