@@ -1,7 +1,7 @@
-use crate::page::Page;
+use crate::page::{Page, Record};
 use std::io::Cursor;
 use byteorder::{ReadBytesExt, BigEndian};
-use crate::types::read_varint;
+use crate::types::Varint;
 
 pub struct DBMetadata {
     page: Page,
@@ -48,12 +48,15 @@ impl DBMetadata {
             //    we get record by record and extract, using the type, the right column
             let record_header_start = cursor.read_u16::<BigEndian>().expect("We know the numbrer of table") as usize;
             let cell_header = self.page.get_slice(record_header_start, record_header_start + 10);
-            let (record_size, varint_size) = read_varint(cell_header);
-            let _rowid = cell_header[varint_size];
-            let record_header_start = record_header_start + varint_size + 1;
-            let record =  self.page.get_slice(record_header_start, record_header_start + record_size as usize);
-            self.schema.push(Table::new(&record));            
-
+            let record_size = Varint::new(cell_header);
+            let _rowid = cell_header[record_size.size];
+            let record_header_start = record_header_start + record_size.size + 1;
+            let record_buffer =  self.page.get_slice(record_header_start, record_header_start + record_size.size as usize);
+            if let Ok(record) = Record::new(record_buffer) {
+                self.schema.push(Table::new(record));            
+            } else {
+                todo!("Handle error when parsing record");
+            }
         }
     }
 }
@@ -77,15 +80,12 @@ pub struct Table {
     tablename: String,
     rootpage: usize,
     tabledef: String,
-    columns: Vec<ColType>
 }
 
 impl Table {
-    fn new(record: &[u8]) -> Self {
-        let (record_header_size, varint_size) = read_varint(record);
-        let mut columns : Vec<ColType> = vec![];
+    fn new(record: Record) -> Self {
+        // TODO: use reord to create table 
         Self {
-            columns,
         }
     }
 }
