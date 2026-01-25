@@ -1,5 +1,5 @@
-use crate::record::FieldType;
-use crate::record::Record;
+use crate::fileformat::record::FieldType;
+use crate::fileformat::record::Record;
 use std::collections::HashMap;
 
 pub type SchemaTable = HashMap<String, Table>;

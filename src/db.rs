@@ -1,10 +1,13 @@
-use crate::dbmetadata::DBMetadata;
-use crate::page::Page;
-use crate::parser::Query;
+use crate::db::dbmetadata::DBMetadata;
+use crate::fileformat::page::Page;
+use crate::parser::{Parser, query::Query};
 use anyhow::{Result, anyhow};
 use std::fs::File;
 use std::io::BufReader;
 use std::io::{Read, Seek, SeekFrom};
+
+pub mod dbmetadata;
+pub mod table;
 
 pub struct DB {
     pub metadata: DBMetadata,
@@ -48,11 +51,15 @@ impl DB {
     }
 
     pub fn process_query(&mut self, query_str: String) -> Result<()> {
-        let query = Query::new(query_str);
-        self.execute(query)
+        let mut parser = Parser::new(&query_str);
+        parser.parse();
+        for query in parser.queries {
+            self.execute(&query)?;
+        }
+        Ok(())
     }
 
-    fn execute(&mut self, query: Query) -> Result<()> {
+    fn execute(&mut self, query: &Query) -> Result<()> {
         let Some(table) = self.metadata.schema.get(&query.from) else {
             return Err(anyhow!("The table does not exists"));
         };

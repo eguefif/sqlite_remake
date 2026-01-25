@@ -1,4 +1,4 @@
-use crate::record::Record;
+use crate::fileformat::record::Record;
 use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
 use std::io::Cursor;

@@ -2,12 +2,8 @@ use crate::db::DB;
 use anyhow::{Result, bail};
 
 pub mod db;
-pub mod dbmetadata;
-pub mod page;
+pub mod fileformat;
 pub mod parser;
-pub mod record;
-pub mod table;
-pub mod types;
 
 fn main() -> Result<()> {
     // Parse arguments

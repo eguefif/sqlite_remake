@@ -1,4 +1,4 @@
-use crate::types::Varint;
+use crate::fileformat::types::Varint;
 use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
 use std::io::{Cursor, Read};
