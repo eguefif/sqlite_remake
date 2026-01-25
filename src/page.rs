@@ -45,17 +45,17 @@ impl Page {
 
     pub fn get_cell_pointer_array(&self) -> &[u8] {
         let buffer = self.get_page_buffer();
+        let cell_number = self.page_header.cell_number;
         if self.page_header.btree_type == BTreeType::InteriorPage {
-            return &buffer[12..]
+            return &buffer[12..12 + cell_number as usize * 2]
         } else {
-            return &buffer[8..]
+            return &buffer[8..8 + cell_number as usize * 2]
         }
 
     }
 
     pub fn get_slice(&self, start: usize, end: usize) -> &[u8] {
-        let buffer = self.get_page_buffer();
-        &buffer[start..end]
+        &self.buffer[start..end]
     }
 }
 
@@ -100,5 +100,92 @@ impl PageHeader {
             frag_number: cursor.read_u8()?,
             right_most_pointer: cursor.read_u16::<BigEndian>()? as usize,
         })
+    }
+}
+
+pub enum ColSerialType {
+    Null,
+    Vu8,
+    Vu16,
+    Vu32,
+    Vu48,
+    Vu64,
+    Vf64,
+    V0,
+    V1,
+    Variable,
+    Blob(usize),
+    Str(usize)
+}
+
+// TODO: Refactor Varint => use new struct
+// Impl ColserialType
+// Impl RecordHeader
+// Impl Record
+impl ColSerialType {
+    pub fn new(serial_type: usize) -> ColSerialType {
+        match serial_type {
+            0 => ColSerialType::Null,
+            1 => ColSerialType::Vu8,
+            2 => ColSerialType::Vu16,
+            3 => ColSerialType::Vu32,
+            4 => ColSerialType::Vu48,
+            5 => ColSerialType::Vu64,
+            6 => ColSerialType::Vf64,
+            7 => ColSerialType::V0,
+            8 => ColSerialType::V1,
+            10 | 11 => ColSerialType::Variable,
+            _ => {
+                if serial_type >= 12 && serial_type % 2 == 0 {
+                    let size = (serial_type - 12) / 2;
+                    return ColSerialType::Blob(size);
+                } else if serial_type > 13 && serial_type % 2 != 0 {
+                    let size = (serial_type - 13) / 2;
+                    return ColSerialType::Str(size);
+                }
+                panic!("Error: serial type is not valid");
+            }
+        }
+    }
+}
+
+pub struct RecordHeader {
+    size: usize,
+    col_serial_type: Vec<ColSerialType>
+}
+
+impl RecordHeader {
+    pub fn new(buffer: &[u8]) -> Self {
+        // Get header size: first varint
+        // get ech column type => size - 1. It's all varint
+        // use enum on each varint
+        let size = read_varint(buffer);
+        let mut col_serial_type = vec![];
+        for _ in 
+        Self {
+            size,
+            col_serial_type
+
+        }
+    }
+}
+
+pub struct Record<'a> {
+    record_size: usize,
+    rowid: usize,
+    header: RecordHeader,
+    buffer: &'a [u8],
+    record_start: usize // When actual record start, after cell header + record header + rowid
+    
+}
+
+impl Record<'a> {
+    pub fn new(buffer: &'a[u8]) -> Self<'a> {
+        // Get the record_size varint
+        // Get the rowid varint
+        // get the header => header start depend on varint sizes
+        // get the record starts => depends on header size and all varints
+        let record_size
+
     }
 }

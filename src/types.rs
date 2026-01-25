@@ -1,3 +1,8 @@
+struct Varint {
+    value: i64,
+    size: usize,
+}
+
 pub fn read_varint(buffer: &[u8]) -> (i64, usize) {
     let mut varint: i64 = 0;
     let mut size = 0;

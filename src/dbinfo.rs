@@ -7,7 +7,7 @@ pub struct DBMetadata {
     page: Page,
     //header: [u8; 100],
     //page_header: [u8; 12],
-    //schema: SchemaTable,
+    schema: SchemaTable,
 }
 
 impl DBMetadata {
@@ -46,14 +46,13 @@ impl DBMetadata {
             //    each byte is a code to represent the type of one column
             //    When we know the  type of each columns, we know the size of one record
             //    we get record by record and extract, using the type, the right column
-            let start = cursor.read_u16::<BigEndian>().expect("We know the numbrer of table") as usize;
-            let cell_header = self.page.get_slice(start, start + 10);
-            let (cell_size, varint_size) = read_varint(cell_header);
-            let rowid = cell_header[varint_size];
-            println!("start: {}, cell header: {:?}", start, cell_header);
-            println!("size: {}, rowid: {}", cell_size, rowid);
-
-
+            let record_header_start = cursor.read_u16::<BigEndian>().expect("We know the numbrer of table") as usize;
+            let cell_header = self.page.get_slice(record_header_start, record_header_start + 10);
+            let (record_size, varint_size) = read_varint(cell_header);
+            let _rowid = cell_header[varint_size];
+            let record_header_start = record_header_start + varint_size + 1;
+            let record =  self.page.get_slice(record_header_start, record_header_start + record_size as usize);
+            self.schema.push(Table::new(&record));            
 
         }
     }
@@ -68,10 +67,25 @@ pub enum TableType {
     Trigger,
 }
 
+pub enum ColType {
+
+}
+
 pub struct Table {
     table_type: TableType,
     name: String,
     tablename: String,
     rootpage: usize,
     tabledef: String,
+    columns: Vec<ColType>
+}
+
+impl Table {
+    fn new(record: &[u8]) -> Self {
+        let (record_header_size, varint_size) = read_varint(record);
+        let mut columns : Vec<ColType> = vec![];
+        Self {
+            columns,
+        }
+    }
 }
