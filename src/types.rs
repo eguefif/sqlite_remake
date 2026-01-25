@@ -1,3 +1,4 @@
+#[derive(Debug)]
 pub struct Varint {
     pub varint: i64,
     pub size: usize,

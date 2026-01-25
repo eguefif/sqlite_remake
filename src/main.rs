@@ -1,11 +1,12 @@
-use crate::dbinfo::DBMetadata;
+use crate::dbmetadata::DBMetadata;
 use crate::page::Page;
 use anyhow::{Result, bail};
 use std::fs::File;
 use std::io::{BufReader, Read, Seek};
 
-pub mod dbinfo;
+pub mod dbmetadata;
 pub mod page;
+pub mod record;
 pub mod types;
 
 fn main() -> Result<()> {
@@ -28,7 +29,7 @@ fn main() -> Result<()> {
         ".dbinfo" => {
             dbinfo.print();
         }
-        ".tables" =>  {
+        ".tables" => {
             dbinfo.print_table_names();
         }
         _ => bail!("Missing or invalid command passed: {}", command),
