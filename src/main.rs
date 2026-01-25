@@ -11,6 +11,7 @@ pub mod executor;
 pub mod page;
 pub mod parser;
 pub mod record;
+pub mod table;
 pub mod types;
 
 fn main() -> Result<()> {

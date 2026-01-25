@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 pub struct Query {
     select: String,
     pub from: String,
