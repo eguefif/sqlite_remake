@@ -5,7 +5,7 @@ use std::io::{Cursor, Read};
 
 #[allow(unused)]
 pub struct Record<'a> {
-    record_size: usize,
+    cell_size: usize,
     rowid: usize,
     header: RecordHeader,
     buffer: &'a [u8],
@@ -15,11 +15,14 @@ pub struct Record<'a> {
 
 impl<'a> Record<'a> {
     pub fn new(buffer: &'a [u8]) -> Result<Self> {
-        let record_size = Varint::new(buffer);
-        let rowid = Varint::new(&buffer[record_size.size..]);
-        let buffer_start = record_size.size + rowid.size;
+        // Parsing cell Header
+        let cell_size = Varint::new(buffer);
+        let rowid = Varint::new(&buffer[cell_size.size..]);
+
+        // Parsing record header
+        let buffer_start = cell_size.size + rowid.size;
         let header = RecordHeader::new(&buffer[buffer_start..]);
-        let record_start = record_size.size + rowid.size + header.size;
+        let record_start = cell_size.size + rowid.size + header.size;
         let mut fields: Vec<FieldType> = vec![];
         let mut cursor = Cursor::new(&buffer[record_start..]);
         for col_serial_type in header.col_serial_types.iter() {
@@ -27,7 +30,7 @@ impl<'a> Record<'a> {
             fields.push(field?);
         }
         Ok(Self {
-            record_size: record_size.varint as usize,
+            cell_size: cell_size.varint as usize,
             rowid: rowid.varint as usize,
             header,
             buffer: buffer,
@@ -57,6 +60,9 @@ pub enum ColSerialType {
     Str(usize),
 }
 
+// Represents all the type that a record collumns can be.
+// See 2.1 Record Format in https://www.sqlite.org/fileformat.html
+// We don't store the value of the type yet.
 impl ColSerialType {
     pub fn new(serial_type: usize) -> ColSerialType {
         match serial_type {
@@ -84,6 +90,7 @@ impl ColSerialType {
     }
 }
 
+// RecordHeader allows us to know how to find values in the record
 #[derive(Debug)]
 pub struct RecordHeader {
     size: usize,
@@ -111,7 +118,8 @@ impl RecordHeader {
     }
 }
 
-#[derive(Debug)]
+// FieldType represernts the type and store the value of the column
+#[derive(Debug, Clone)]
 pub enum FieldType {
     TNull,
     TI8(i8),

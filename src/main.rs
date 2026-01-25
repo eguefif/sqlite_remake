@@ -1,11 +1,15 @@
 use crate::dbmetadata::DBMetadata;
+use crate::executor::execute;
 use crate::page::Page;
+use crate::parser::Query;
 use anyhow::{Result, bail};
 use std::fs::File;
 use std::io::{BufReader, Read, Seek};
 
 pub mod dbmetadata;
+pub mod executor;
 pub mod page;
+pub mod parser;
 pub mod record;
 pub mod types;
 
@@ -32,7 +36,10 @@ fn main() -> Result<()> {
         ".tables" => {
             dbinfo.print_table_names();
         }
-        _ => bail!("Missing or invalid command passed: {}", command),
+        _ => {
+            let query = Query::new(command.to_string());
+            execute(query, dbinfo)?;
+        }
     }
 
     Ok(())

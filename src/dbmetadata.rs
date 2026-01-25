@@ -4,7 +4,7 @@ use crate::record::Record;
 
 pub struct DBMetadata {
     page: Page,
-    schema: SchemaTable,
+    pub schema: SchemaTable,
 }
 
 impl DBMetadata {
@@ -80,7 +80,7 @@ pub struct Table {
     table_type: TableType,
     name: String,
     pub tablename: String,
-    //rootpage: usize,
+    rootpage: usize,
     tabledef: String,
 }
 
@@ -95,7 +95,6 @@ impl Table {
         let FieldType::TStr(ref tablename) = record.fields[2] else {
             panic!("Wrong type tablename schema")
         };
-        //let FieldType::TStr(rootpage) = record.fields[3] else { panic!("Wrong type table rootpage") };
         let FieldType::TStr(ref tabledef) = record.fields[4] else {
             panic!("Wrong type tabledef")
         };
@@ -104,8 +103,25 @@ impl Table {
             table_type: TableType::from_str(&table_type),
             name: name.to_string(),
             tablename: tablename.to_string(),
-            //rootpage: rootpage as usize,
+            rootpage: Table::get_root_page(record.fields[3].clone()),
             tabledef: tabledef.to_string(),
+        }
+    }
+
+    fn get_root_page(record: FieldType) -> usize {
+        match record {
+            FieldType::TNull => panic!("Table parsing: this type cannot be used for root_page"),
+            FieldType::TI8(num) => num as usize,
+            FieldType::TI16(num) => num as usize,
+            FieldType::TI32(num) => num as usize,
+            FieldType::TI48(num) => num as usize,
+            FieldType::TI64(num) => num as usize,
+            FieldType::TF64(num) => num as usize,
+            FieldType::T0 => 0,
+            FieldType::T1 => 1,
+            FieldType::TVar => panic!("Table parsing: this type cannot be used for root_page"),
+            FieldType::TBlob(_) => panic!("Table parsing: this type cannot be used for root_page"),
+            FieldType::TStr(_) => panic!("Table parsing: this type cannot be used for root_page"),
         }
     }
 }
