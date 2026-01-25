@@ -1,6 +1,7 @@
 use crate::page::Page;
 use crate::record::FieldType;
 use crate::record::Record;
+use std::collections::HashMap;
 
 pub struct DBMetadata {
     page: Page,
@@ -14,10 +15,11 @@ impl DBMetadata {
     }
 
     fn create_table_schema(page: &Page) -> SchemaTable {
-        let mut schema: SchemaTable = vec![];
+        let mut schema: SchemaTable = HashMap::new();
         for n in 0..page.get_record_number() {
             let mut record = page.get_nth_record(n);
-            schema.push(Table::new(&mut record));
+            let table = Table::new(&mut record);
+            schema.insert(table.tablename.clone(), table);
         }
         schema
     }
@@ -43,7 +45,7 @@ impl DBMetadata {
     }
 
     pub fn print_table_names(self) {
-        for (i, table) in self.schema.iter().enumerate() {
+        for (i, table) in self.schema.values().enumerate() {
             if i != 0 {
                 print!(" ");
             }
@@ -52,7 +54,7 @@ impl DBMetadata {
     }
 }
 
-type SchemaTable = Vec<Table>;
+type SchemaTable = HashMap<String, Table>;
 
 pub enum TableType {
     Table,
@@ -80,7 +82,7 @@ pub struct Table {
     table_type: TableType,
     name: String,
     pub tablename: String,
-    rootpage: usize,
+    pub rootpage: usize,
     tabledef: String,
 }
 

@@ -1,6 +1,6 @@
 pub struct Query {
     select: String,
-    from: String,
+    pub from: String,
 }
 
 impl Query {

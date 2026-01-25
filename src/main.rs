@@ -26,7 +26,7 @@ fn main() -> Result<()> {
     let command = &args[2];
     let file = File::open(&args[1])?;
     let mut buf_reader = BufReader::new(file);
-    let page_size = get_page_size(&mut buf_reader)?;
+    let page_size = get_page_size(&mut buf_reader)? as usize;
 
     let dbinfo = get_dbinfo(&mut buf_reader, page_size)?;
     match command.as_str() {
@@ -38,19 +38,22 @@ fn main() -> Result<()> {
         }
         _ => {
             let query = Query::new(command.to_string());
-            execute(query, dbinfo)?;
+            execute(query, dbinfo, &mut buf_reader, page_size)?;
         }
     }
 
     Ok(())
 }
 
-fn get_dbinfo(buf_reader: &mut BufReader<File>, page_size: u16) -> Result<DBMetadata> {
+fn get_page(buf_reader: &mut BufReader<File>, page_size: usize, root_page: usize) -> Result<Page> {
     let mut buffer = Vec::new();
     buffer.resize(page_size as usize, 0);
     buf_reader.read_exact(&mut buffer)?;
-    let page1 = Page::new(buffer, 1)?;
-    Ok(DBMetadata::new(page1))
+    Page::new(buffer, root_page)
+}
+
+fn get_dbinfo(buf_reader: &mut BufReader<File>, page_size: usize) -> Result<DBMetadata> {
+    Ok(DBMetadata::new(get_page(buf_reader, page_size, 1)?))
 }
 
 fn get_page_size(buf_reader: &mut BufReader<File>) -> Result<u16> {
