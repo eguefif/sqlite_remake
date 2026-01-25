@@ -23,7 +23,7 @@ impl DBMetadata {
         schema
     }
 
-    pub fn print(&self) {
+    pub fn print_metadata(&self) {
         println!("database page size: {}", self.get_page_size());
         println!("number of tables: {}", self.get_number_of_table());
     }
@@ -31,7 +31,6 @@ impl DBMetadata {
     fn get_page_size(&self) -> u16 {
         // The page size is stored at the 16th byte offset, using 2 bytes in big-endian order
         if let Some(header) = self.page.get_db_header() {
-            println!("{:?}", header);
             return u16::from_be_bytes([header[16], header[17]]);
         }
         0
