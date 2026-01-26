@@ -40,8 +40,8 @@ impl<'a> Parser<'a> {
                 return Err(anyhow!("Error: parser: unexpected EOF"));
             };
             match peek {
-                Token::Value(_) => {
-                    if let Token::Value(value) = self.tokenizer.next().unwrap() {
+                Token::Ident(_) => {
+                    if let Token::Ident(value) = self.tokenizer.next().unwrap() {
                         query.push_select(value);
                     } else {
                         panic!("Unreachable code reached");
@@ -59,7 +59,7 @@ impl<'a> Parser<'a> {
     fn parse_from(&mut self, mut query: Query) -> Result<Query> {
         self.expect_token(Token::From)?;
         if let Some(token) = self.tokenizer.next() {
-            if let Token::Value(value) = token {
+            if let Token::Ident(value) = token {
                 query.set_from(value)
             } else {
                 return Err(anyhow!("Error: parser: no table for FROM"));

@@ -5,7 +5,7 @@ use std::fmt;
 #[derive(Debug)]
 pub enum SelectType {
     Function(String),
-    Value(String)
+    Value(String),
 }
 
 impl fmt::Display for SelectType {
@@ -26,13 +26,12 @@ pub enum Operator {
     LessThanOrEqual,
 }
 
-
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct Query {
     pub select: Vec<SelectType>,
     pub from: String,
-    pub where: Option<(String, String, Operator)>,
+    //pub where: Option<(String, String, Operator)>,
 }
 
 impl Query {
@@ -40,7 +39,7 @@ impl Query {
         Self {
             select: vec![],
             from: "".to_string(),
-            where: None
+            //where: None
         }
     }
 
@@ -59,7 +58,12 @@ impl Query {
 
 impl fmt::Display for Query {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let select = self.select.iter().map(|value| value.to_string()).collect::<Vec<_>>().join(", ");
+        let select = self
+            .select
+            .iter()
+            .map(|value| value.to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
         write!(f, "Query: SELECT {} FROM {}", select, self.from)
     }
 }
