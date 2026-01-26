@@ -3,6 +3,7 @@
 use std::fmt;
 
 #[allow(dead_code)]
+#[derive(Debug)]
 pub struct Query {
     pub select: Vec<String>,
     pub from: String,

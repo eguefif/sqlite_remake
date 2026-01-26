@@ -66,11 +66,10 @@ impl DB {
     }
 
     pub fn process_query(&mut self, query_str: String) -> Result<Option<Vec<Response>>> {
-        let mut parser = Parser::new(&query_str);
+        let parser = Parser::new(&query_str);
         let mut responses: Vec<Response> = vec![];
-        parser.parse()?;
-        for query in parser.queries {
-            let response = self.execute_query(&query)?;
+        for query in parser {
+            let response = self.execute_query(&query?)?;
             responses.push(response)
         }
         Ok(Some(responses))

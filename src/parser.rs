@@ -1,3 +1,4 @@
+use std::iter::Iterator;
 use crate::parser::{
     query::Query,
     tokenizer::{Token, Tokenizer},
@@ -8,36 +9,13 @@ pub mod tokenizer;
 
 pub struct Parser<'a> {
     tokenizer: Tokenizer<'a>,
-    pub queries: Vec<Query>,
 }
 
 impl<'a> Parser<'a> {
     pub fn new(query_str: &'a str) -> Self {
         Self {
             tokenizer: Tokenizer::new(query_str),
-            queries: vec![],
         }
-    }
-
-    // Parse the input query string into a list of Query objects
-    // Each Query starts with a SELECT token and ends when the 
-    // tokenizer returns None
-    pub fn parse(&mut self) -> Result<()> {
-        loop {
-            let mut query = Query::new();
-            self.expect_token(Token::Select)?;
-
-            query = self.parse_select(query)?;
-            query = self.parse_from(query)?;
-            self.queries.push(query);
-
-            if let None = self.tokenizer.peek() {
-                break;
-            }
-            self.expect_token(Token::SemiColon)?;
-        }
-
-        Ok(())
     }
 
     fn parse_select(&mut self, mut query: Query) -> Result<Query> {
@@ -47,12 +25,15 @@ impl<'a> Parser<'a> {
             };
             match peek {
                 Token::Value(_) => {
-                    let Token::Value(value) = self.tokenizer.next().unwrap() else {
-                        panic!("Unreachable code");
-                    };
-                    query.push_select(value);
+                    if let Token::Value(value) = self.tokenizer.next().unwrap() {
+                        query.push_select(value);
+                    } else {
+                        panic!("Unreachable code reached");
+                    }
                 }
-                Token::Coma => {}
+                Token::Coma => {
+                    self.tokenizer.next().unwrap();
+                }
                 _ => break,
             }
         }
@@ -106,5 +87,32 @@ impl<'a> Parser<'a> {
             }
         }
         Err(anyhow!("Expected token {} but got EOF", expected_token))
+    }
+}
+
+impl Iterator for Parser<'_> {
+    type Item = Result<Query>;
+
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let None = self.tokenizer.peek() {
+            return None;
+        }
+        let query = Query::new();
+        if let Err(error) = self.expect_token(Token::Select) {
+            return Some(Err(error));
+        }
+
+        let Ok(query) = self.parse_select(query) else {
+            return Some(Err(anyhow!("Error parsing SELECT clause")));
+        };
+        let Ok(query) = self.parse_from(query) else {
+            return Some(Err(anyhow!("Error parsing FROM clause")));
+        };
+
+        if let Err(error) = self.expect_token(Token::SemiColon) {
+            return Some(Err(error));
+        }
+        Some(Ok(query))
     }
 }
