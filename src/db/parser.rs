@@ -1,9 +1,23 @@
-use std::iter::Iterator;
-use crate::parser::{
+//! Internal module to parse SQL and build queries.
+//! It supports SELECT and FROM clauses.
+//!
+//! # Example
+//! ```
+//! use crate::parser::Parser;
+//! let query_str = "SELECT name, age FROM users;";
+//! let mut parser = Parser::new(query_str);
+//! for query in parser {
+//!    let query = query.unwrap();
+//!    println!("{}", query);
+//!    }
+//! ```
+use crate::db::parser::{
     query::Query,
     tokenizer::{Token, Tokenizer},
 };
 use anyhow::{Result, anyhow};
+use std::iter::Iterator;
+
 pub mod query;
 pub mod tokenizer;
 
@@ -21,7 +35,7 @@ impl<'a> Parser<'a> {
     fn parse_select(&mut self, mut query: Query) -> Result<Query> {
         loop {
             let Some(peek) = self.tokenizer.peek() else {
-                return Err(anyhow!("Error parsing: unexpected EOF"));
+                return Err(anyhow!("Error: parser: unexpected EOF"));
             };
             match peek {
                 Token::Value(_) => {
@@ -46,7 +60,7 @@ impl<'a> Parser<'a> {
             if let Token::Value(value) = token {
                 query.set_from(value)
             } else {
-                return Err(anyhow!("Error parsing: no table for FROM"));
+                return Err(anyhow!("Error: parser: no table for FROM"));
             }
         }
         Ok(query)
@@ -93,7 +107,7 @@ impl<'a> Parser<'a> {
 impl Iterator for Parser<'_> {
     type Item = Result<Query>;
 
-
+    // Parse the next query
     fn next(&mut self) -> Option<Self::Item> {
         if let None = self.tokenizer.peek() {
             return None;
@@ -104,14 +118,19 @@ impl Iterator for Parser<'_> {
         }
 
         let Ok(query) = self.parse_select(query) else {
-            return Some(Err(anyhow!("Error parsing SELECT clause")));
+            return Some(Err(anyhow!("Error: parser: SELECT clause malformed")));
         };
         let Ok(query) = self.parse_from(query) else {
-            return Some(Err(anyhow!("Error parsing FROM clause")));
+            return Some(Err(anyhow!("Error: parser: FROM clause malformed")));
         };
 
+        // Expect a semicolon at the end of the query
         if let Err(error) = self.expect_token(Token::SemiColon) {
-            return Some(Err(error));
+            // If there is token left and not semicolon, return an error
+            if let Some(_) = self.tokenizer.peek() {
+                return Some(Err(error));
+            }
+            // If there was no semicolon but no token left, then it's ok
         }
         Some(Ok(query))
     }

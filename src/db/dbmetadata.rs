@@ -1,5 +1,5 @@
 use crate::db::table::{SchemaTable, Table};
-use crate::fileformat::page::Page;
+use crate::db::fileformat::page::Page;
 use std::collections::HashMap;
 
 pub struct DBMetadata {

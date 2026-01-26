@@ -1,9 +1,5 @@
-use crate::db::{DB, db_response::Response};
 use anyhow::{Result, bail};
-
-pub mod db;
-pub mod fileformat;
-pub mod parser;
+use codecrafters_sqlite::db::{DB, parser::query::Query, db_response::Response};
 
 fn main() -> Result<()> {
     // Parse arguments
@@ -24,8 +20,8 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn display_response(responses: &[Response]) {
-    for response in responses {
+fn display_response(responses: &[(Query, Response)]) {
+    for (_, response) in responses {
         for row in response {
             for (i, col) in row.iter().enumerate() {
                 if i != 0 {

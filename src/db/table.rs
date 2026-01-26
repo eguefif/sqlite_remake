@@ -1,5 +1,6 @@
-use crate::fileformat::record::FieldType;
-use crate::fileformat::record::Record;
+//! Module for handling database table schemas.
+use crate::db::fileformat::record::FieldType;
+use crate::db::fileformat::record::Record;
 use std::collections::HashMap;
 
 pub type SchemaTable = HashMap<String, Table>;

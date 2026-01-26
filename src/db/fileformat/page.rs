@@ -1,7 +1,30 @@
-use crate::fileformat::record::Record;
+//! Module that contains the sqlite page structure
+//!
+//! A page can be of different types, see [PageType] enum.
+//!
+//! The first page is a special page as it contains the database header. It is stored
+//! in the first 100 bytes of the file. The rest of the page is a normal page.
+//! Note that for this page, the page header starts at 100 but the record offsets
+//! are relative to the start of the page (0).
+//!
+//! For now, we only suport B-Tree pages 
+//! A page is composed of the following:
+//! * a header [PageHeader]
+//! * a cell pointer array: array of u16 offsets to the cells
+//!
+//! A `cell` contains a record. See [Record] module for more information about records.
+//! But Cell format depends on the BTree type. See 1.6. B-tree Pages in
+//! [Sqlite fileformat documentation](https://www.sqlite.org/fileformat.html)
+use crate::db::fileformat::record::Record;
 use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
 use std::io::Cursor;
+
+// TODO: handle other page types using a trait
+// The trait should provides methods to :
+//   - get the number of records
+//   - get a page
+//  We will need a page factory that take a buffer and a page_number
 
 pub struct Page {
     pub buffer: Vec<u8>,
@@ -27,7 +50,8 @@ impl Page {
         })
     }
 
-    // This function only works for the first page
+    /// Get the database header
+    /// This function only works for the first page
     pub fn get_db_header(&self) -> Option<&[u8]> {
         if self.page_number == 1 {
             Some(&self.buffer[0..100])
@@ -36,6 +60,8 @@ impl Page {
         }
     }
 
+    /// Utility functions to automatically skip the first 100 bytes header
+    /// if the page is the first page
     fn get_page_buffer(&self) -> &[u8] {
         // The first page contains the db metadata. It span from the byte 0
         // to the byte 100
@@ -46,12 +72,15 @@ impl Page {
         }
     }
 
+    /// Get the number of records in the page
+    /// A Cell contains a record, therefore, the number of record
+    /// is the number of cells in the page
     pub fn get_record_number(&self) -> usize {
         self.page_header.cell_number
     }
 
-    // cell_pointer_array are pointers to page cells
-    // cells are records
+    /// cell_pointer_array are pointers to page cells
+    /// cells are records
     pub fn get_cell_pointer_array(&self) -> &[u8] {
         let buffer = self.get_page_buffer();
         let cell_number = self.page_header.cell_number;
@@ -62,9 +91,9 @@ impl Page {
         }
     }
 
-    // Get a slice
-    // This function does not automaticaly shift the offset to after the file header
-    // in case of the page is the first page. This functions is used mostly to retrieve record
+    /// Get a slice
+    /// This function does not automaticaly shift the offset to after the file header
+    /// in case of the page is the first page. This functions is used mostly to retrieve record
     pub fn get_slice(&self, start: usize, end: Option<usize>) -> &[u8] {
         if let Some(end_range) = end {
             &self.buffer[start..end_range]
@@ -73,20 +102,39 @@ impl Page {
         }
     }
 
+    /// This function is used to iterate over records in a page
+    /// # Example
+    /// ```no_run
+    /// let page: Page = Page::new(buffer, page_number).unwrap();
+    /// for i in 0..page.get_record_number() {
+    ///    let record = page.get_nth_record(i);
+    ///    // do something with the record
+    /// }
     pub fn get_nth_record(&self, index: usize) -> Record<'_> {
         let cell_array = self.get_cell_pointer_array();
         let offset_start = index * 2;
         let mut cursor = Cursor::new(&cell_array[offset_start..]);
         if let Ok(cell_start) = cursor.read_u16::<BigEndian>() {
+            // TODO: Handle error
             Record::new(&self.get_slice(cell_start as usize, None))
                 .expect("Error: indexing record, file parsing failed")
         } else {
+            // TODO: Handle error
             panic!("Page error: out of bound index record")
         }
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
+pub enum PageType {
+    BTree(BTreeType),
+    FreeList,
+    Overflow,
+    PointerMap,
+    LockByte
+}
+
+#[derive(PartialEq, Debug)]
 pub enum BTreeType {
     InteriorIndex,
     InteriorPage,

@@ -1,9 +1,16 @@
-//! A simple database engine that can read a database file, parse queries, and return results.
-//! It s
+//! A simple database engine that can read a database file, parse queries, and return results. It contains struct to represent the database, its metadata, and responses.
+//!
+//! # Example
+//! ```
+//! use crate::db::DB;
+//! let mut db = DB::new("test.db").unwrap();
+//! let response = db.execute("SELECT name FROM users;").unwrap();
+//! ```
+//!
 use crate::db::db_response::{RType, Response};
 use crate::db::dbmetadata::DBMetadata;
-use crate::fileformat::page::Page;
-use crate::parser::{Parser, query::Query};
+use crate::db::fileformat::page::Page;
+use crate::db::parser::{Parser, query::Query};
 use anyhow::{Result, anyhow};
 use std::fs::File;
 use std::io::BufReader;
@@ -12,6 +19,8 @@ use std::io::{Read, Seek, SeekFrom};
 pub mod db_response;
 pub mod dbmetadata;
 pub mod table;
+pub mod fileformat;
+pub mod parser;
 
 pub struct DB {
     metadata: DBMetadata,
@@ -23,14 +32,16 @@ impl DB {
     pub fn new(filename: &str) -> Result<Self> {
         let file = File::open(filename)?;
         let mut buf_reader = BufReader::new(file);
+        // We need page_size to read pages. The page_size is defined in the database header.
         let page_size = DB::get_page_size(&mut buf_reader)? as usize;
 
+        // We read the first page to build the metadata
         let mut buffer = Vec::new();
         buffer.resize(page_size as usize, 0);
         buf_reader.read_exact(&mut buffer)?;
-        buf_reader.rewind()?;
         let page = Page::new(buffer, 1)?;
         let metadata = DBMetadata::new(page);
+
         Ok(Self {
             metadata,
             page_size,
@@ -48,29 +59,35 @@ impl DB {
     fn get_page(&mut self, root_page: usize) -> Result<Page> {
         let mut buffer = Vec::new();
         buffer.resize(self.page_size, 0);
+        // Page are numbered from 1, we need to subtract 1 to get the offset
         let offset = ((root_page - 1) * self.page_size) as u64;
         self.buf_reader.seek(SeekFrom::Start(offset))?;
         self.buf_reader.read_exact(&mut buffer)?;
         Page::new(buffer, root_page)
     }
 
-    pub fn execute(&mut self, command: &str) -> Result<Option<Vec<Response>>> {
+    /// Execute a command, which can be either a special command (like .dbinfo or .tables)
+    /// or a SQL query.
+    /// Returns None for special commands, or Some(Vec<(Query, Response)) for SQL queries.
+    /// A Response is a vector of rows, where each row is a vector of [RType values][RType].
+    pub fn execute(&mut self, command: &str) -> Result<Option<Vec<(Query, Response)>>> {
         match command {
             ".dbinfo" => self.metadata.print_metadata(),
             ".tables" => self.metadata.print_table_names(),
             _ => {
-                return self.process_query(command.to_string());
+                return self.process_queries(command.to_string());
             }
         }
         Ok(None)
     }
 
-    pub fn process_query(&mut self, query_str: String) -> Result<Option<Vec<Response>>> {
+    fn process_queries(&mut self, query_str: String) -> Result<Option<Vec<(Query, Response)>>> {
         let parser = Parser::new(&query_str);
-        let mut responses: Vec<Response> = vec![];
-        for query in parser {
-            let response = self.execute_query(&query?)?;
-            responses.push(response)
+        let mut responses: Vec<(Query, Response)> = vec![];
+        for query in parser.into_iter() {
+            let query = query?;
+            let response = self.execute_query(&query)?;
+            responses.push((query, response))
         }
         Ok(Some(responses))
     }

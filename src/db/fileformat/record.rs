@@ -1,5 +1,8 @@
+/// Module to handle Record parsing from a cell payload
+/// ! See 2.1 Record Format in https://www.sqlite.org/fileformat.html
+/// A record is contains by a Cell.
 use crate::db::db_response::RType;
-use crate::fileformat::types::Varint;
+use crate::db::fileformat::types::Varint;
 use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
 use std::io::{Cursor, Read};
