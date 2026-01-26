@@ -55,7 +55,7 @@ impl DB {
     pub fn process_query(&mut self, query_str: String) -> Result<Vec<Response>> {
         let mut parser = Parser::new(&query_str);
         let mut responses = vec![];
-        parser.parse();
+        parser.parse()?;
         for query in parser.queries {
             responses.push(self.execute(&query)?);
         }
