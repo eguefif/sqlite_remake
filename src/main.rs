@@ -1,4 +1,4 @@
-use crate::db::DB;
+use crate::db::{DB, db_response::Response};
 use anyhow::{Result, bail};
 
 pub mod db;
@@ -26,19 +26,23 @@ fn main() -> Result<()> {
         }
         _ => {
             let responses = db.process_query(command.to_string())?;
-            for response in responses {
-                for row in response {
-                    for (i, col) in row.iter().enumerate() {
-                        if i != 0 {
-                            print!("|");
-                        }
-                        print!("{}", col);
-                    }
-                    println!("");
-                }
-            }
+            display_response(&responses);
         }
     }
 
     Ok(())
+}
+
+fn display_response(responses: &[Response]) {
+    for response in responses {
+        for row in response {
+            for (i, col) in row.iter().enumerate() {
+                if i != 0 {
+                    print!("|");
+                }
+                print!("{}", col);
+            }
+            println!("");
+        }
+    }
 }
