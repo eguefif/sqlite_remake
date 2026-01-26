@@ -32,6 +32,7 @@ pub struct Table {
     pub tablename: String,
     pub rootpage: usize,
     tabledef: String,
+    cols_name: Vec<String>,
 }
 
 impl Table {
@@ -49,12 +50,15 @@ impl Table {
             panic!("Wrong type tabledef")
         };
 
+        let cols_name = Table::get_cols_name(tabledef);
+
         Self {
             table_type: TableType::from_str(&table_type),
             name: name.to_string(),
             tablename: tablename.to_string(),
             rootpage: Table::get_root_page(record.fields[3].clone()),
             tabledef: tabledef.to_string(),
+            cols_name,
         }
     }
 
@@ -73,5 +77,28 @@ impl Table {
             FieldType::TBlob(_) => panic!("Table parsing: this type cannot be used for root_page"),
             FieldType::TStr(_) => panic!("Table parsing: this type cannot be used for root_page"),
         }
+    }
+
+    fn get_cols_name(tabledef: &str) -> Vec<String> {
+        let values_str = tabledef.split('(').collect::<Vec<_>>()[1];
+        values_str
+            .split(',')
+            .map(|value| Table::trim_column_def(value.trim()))
+            .collect::<Vec<_>>()
+    }
+
+    fn trim_column_def(value: &str) -> String {
+        if value.contains(' ') {
+            value.split(' ').next().unwrap().trim().to_string()
+        } else {
+            value.trim().to_string()
+        }
+    }
+
+    pub fn get_col_index(&self, col_name: &str) -> usize {
+        self.cols_name
+            .iter()
+            .position(|name| col_name == name)
+            .unwrap()
     }
 }

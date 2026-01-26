@@ -1,3 +1,4 @@
+use crate::db::db_response::{RType, Response};
 use crate::db::dbmetadata::DBMetadata;
 use crate::fileformat::page::Page;
 use crate::parser::{Parser, query::Query};
@@ -6,6 +7,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::io::{Read, Seek, SeekFrom};
 
+pub mod db_response;
 pub mod dbmetadata;
 pub mod table;
 
@@ -50,23 +52,51 @@ impl DB {
         Page::new(buffer, root_page)
     }
 
-    pub fn process_query(&mut self, query_str: String) -> Result<()> {
+    pub fn process_query(&mut self, query_str: String) -> Result<Vec<Response>> {
         let mut parser = Parser::new(&query_str);
+        let mut responses = vec![];
         parser.parse();
         for query in parser.queries {
-            self.execute(&query)?;
+            responses.push(self.execute(&query)?);
         }
-        Ok(())
+        Ok(responses)
     }
 
-    fn execute(&mut self, query: &Query) -> Result<()> {
+    fn execute(&mut self, query: &Query) -> Result<Response> {
         let Some(table) = self.metadata.schema.get(&query.from) else {
             return Err(anyhow!("The table does not exists"));
         };
 
-        let page = self.get_page(table.rootpage)?;
+        let rootpage = table.rootpage;
+        let mut response: Response = vec![];
 
-        println!("{}", page.get_record_number());
-        Ok(())
+        let mut cols: Vec<&str> = vec![];
+        for value in query.select.iter() {
+            cols.push(value);
+        }
+
+        let mut col_indexes: Vec<usize> = vec![];
+        for col_name in cols {
+            if col_name.to_lowercase().contains("count") {
+                let page = self.get_page(rootpage)?;
+                let row_count = page.get_record_number() as i64;
+                let cell = RType::Num(row_count);
+                return Ok(vec![vec![cell]]);
+            } else {
+                col_indexes.push(table.get_col_index(col_name));
+            }
+        }
+
+        let page = self.get_page(rootpage)?;
+        for n in 0..page.get_record_number() {
+            let mut row = vec![];
+            let record = page.get_nth_record(n);
+            for col_index in col_indexes.iter() {
+                row.push(record.get_col(*col_index))
+            }
+            response.push(row);
+        }
+
+        Ok(response)
     }
 }

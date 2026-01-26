@@ -38,14 +38,14 @@ impl<'a> Parser<'a> {
                     Token::Coma => {}
                     _ => panic!("Don't expect {:?}", token),
                 }
-                let Some(token) = self.tokenizer.next() else {
-                    panic!("Expect a table after FROM");
-                };
-                if let Token::Value(value) = token {
-                    query.set_from(value)
-                } else {
-                    panic!("No table for FROM");
-                }
+            }
+            let Some(token) = self.tokenizer.next() else {
+                panic!("Expect a table after FROM");
+            };
+            if let Token::Value(value) = token {
+                query.set_from(value)
+            } else {
+                panic!("No table for FROM");
             }
             self.queries.push(query);
         }

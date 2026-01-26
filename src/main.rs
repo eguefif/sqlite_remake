@@ -24,7 +24,17 @@ fn main() -> Result<()> {
         ".tables" => {
             db.metadata.print_table_names();
         }
-        _ => db.process_query(command.to_string())?,
+        _ => {
+            let responses = db.process_query(command.to_string())?;
+            for response in responses {
+                for row in response {
+                    for col in row {
+                        print!("{}", col);
+                    }
+                    println!("");
+                }
+            }
+        }
     }
 
     Ok(())

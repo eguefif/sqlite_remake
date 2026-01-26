@@ -1,3 +1,4 @@
+use crate::db::db_response::RType;
 use crate::fileformat::types::Varint;
 use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
@@ -41,6 +42,10 @@ impl<'a> Record<'a> {
 
     pub fn get_record(&self) -> &[u8] {
         &self.buffer[self.record_start..]
+    }
+
+    pub fn get_col(&self, index: usize) -> RType {
+        RType::from_fieldtype(self.fields[index].clone())
     }
 }
 
@@ -86,6 +91,23 @@ impl ColSerialType {
                 }
                 panic!("Error: serial type is not valid");
             }
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        match *self {
+            ColSerialType::Null => 0,
+            ColSerialType::Vu8 => 1,
+            ColSerialType::Vu16 => 2,
+            ColSerialType::Vu32 => 4,
+            ColSerialType::Vu48 => 6,
+            ColSerialType::Vu64 => 8,
+            ColSerialType::Vf64 => 8,
+            ColSerialType::V0 => 0,
+            ColSerialType::V1 => 0,
+            ColSerialType::Variable => panic!("Got variable col type in Record"),
+            ColSerialType::Blob(size) => size,
+            ColSerialType::Str(size) => size,
         }
     }
 }

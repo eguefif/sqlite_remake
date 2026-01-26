@@ -42,7 +42,11 @@ impl Iterator for Tokenizer<'_> {
         let mut token_str = String::new();
         loop {
             let Some(next) = self.buffer.next() else {
-                return None;
+                if token_str.len() == 0 {
+                    return None;
+                } else {
+                    return Some(Token::from_str(&token_str));
+                }
             };
             if next == ' ' {
                 break;
