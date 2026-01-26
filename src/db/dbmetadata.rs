@@ -43,7 +43,7 @@ impl DBMetadata {
     }
 
     // Print tablenames in alphabetical order
-    pub fn print_table_names(self) {
+    pub fn print_table_names(&self) {
         let mut tablenames = Vec::new();
         for table in self.schema.values() {
             tablenames.push(&table.tablename)

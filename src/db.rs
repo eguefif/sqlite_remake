@@ -1,3 +1,5 @@
+//! A simple database engine that can read a database file, parse queries, and return results.
+//! It s
 use crate::db::db_response::{RType, Response};
 use crate::db::dbmetadata::DBMetadata;
 use crate::fileformat::page::Page;
@@ -12,7 +14,7 @@ pub mod dbmetadata;
 pub mod table;
 
 pub struct DB {
-    pub metadata: DBMetadata,
+    metadata: DBMetadata,
     page_size: usize,
     buf_reader: BufReader<File>,
 }
@@ -52,17 +54,29 @@ impl DB {
         Page::new(buffer, root_page)
     }
 
-    pub fn process_query(&mut self, query_str: String) -> Result<Vec<Response>> {
-        let mut parser = Parser::new(&query_str);
-        let mut responses = vec![];
-        parser.parse()?;
-        for query in parser.queries {
-            responses.push(self.execute(&query)?);
+    pub fn execute(&mut self, command: &str) -> Result<Option<Vec<Response>>> {
+        match command {
+            ".dbinfo" => self.metadata.print_metadata(),
+            ".tables" => self.metadata.print_table_names(),
+            _ => {
+                return self.process_query(command.to_string());
+            }
         }
-        Ok(responses)
+        Ok(None)
     }
 
-    fn execute(&mut self, query: &Query) -> Result<Response> {
+    pub fn process_query(&mut self, query_str: String) -> Result<Option<Vec<Response>>> {
+        let mut parser = Parser::new(&query_str);
+        let mut responses: Vec<Response> = vec![];
+        parser.parse()?;
+        for query in parser.queries {
+            let response = self.execute_query(&query)?;
+            responses.push(response)
+        }
+        Ok(Some(responses))
+    }
+
+    fn execute_query(&mut self, query: &Query) -> Result<Response> {
         let Some(table) = self.metadata.schema.get(&query.from) else {
             return Err(anyhow!("The table does not exists"));
         };

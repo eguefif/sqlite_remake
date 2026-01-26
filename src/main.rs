@@ -17,17 +17,8 @@ fn main() -> Result<()> {
     // Parse command and act accordingly
     let command = &args[2];
     let mut db = DB::new(&args[1])?;
-    match command.as_str() {
-        ".dbinfo" => {
-            db.metadata.print_metadata();
-        }
-        ".tables" => {
-            db.metadata.print_table_names();
-        }
-        _ => {
-            let responses = db.process_query(command.to_string())?;
-            display_response(&responses);
-        }
+    if let Some(response) = db.execute(command)? {
+        display_response(&response);
     }
 
     Ok(())
