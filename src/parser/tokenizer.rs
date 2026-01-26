@@ -41,16 +41,27 @@ impl Iterator for Tokenizer<'_> {
     fn next(&mut self) -> Option<Self::Item> {
         let mut token_str = String::new();
         loop {
-            let Some(next) = self.buffer.next() else {
+            let Some(peek) = self.buffer.peek() else {
                 if token_str.len() == 0 {
                     return None;
                 } else {
                     return Some(Token::from_str(&token_str));
                 }
             };
-            if next == ' ' {
+            if *peek == ',' {
+                if token_str.len() == 0 {
+                    self.buffer.next();
+                    return Some(Token::from_str(","));
+                }
                 break;
             }
+            if *peek == ' ' {
+                self.buffer.next();
+                if token_str.len() > 0 {
+                    break;
+                }
+            }
+            let next = self.buffer.next().unwrap();
             token_str.push(next);
         }
         Some(Token::from_str(&token_str))

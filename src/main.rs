@@ -28,7 +28,10 @@ fn main() -> Result<()> {
             let responses = db.process_query(command.to_string())?;
             for response in responses {
                 for row in response {
-                    for col in row {
+                    for (i, col) in row.iter().enumerate() {
+                        if i != 0 {
+                            print!("|");
+                        }
                         print!("{}", col);
                     }
                     println!("");
