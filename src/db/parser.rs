@@ -173,7 +173,7 @@ mod tests {
             ],
             from: "apples".to_string(),
             wh: vec![Statement {
-                left: Token::Ident("name".to_string()),
+                left: "name".to_string(),
                 operator: Operator::Equal,
                 right: Token::QIdent("hey".to_string()),
             }],

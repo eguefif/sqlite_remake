@@ -142,7 +142,7 @@ impl Token {
                     return Token::Num(lower_str.parse::<i64>().unwrap());
                 } else {
                     if lower_str.starts_with("\'") {
-                        return Token::QIdent(lower_str.trim_matches('\'').to_string());
+                        return Token::QIdent(str.trim_matches('\'').to_string());
                     }
                     return Token::Ident(lower_str);
                 }

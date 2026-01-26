@@ -10,7 +10,11 @@
 use crate::db::db_response::{RType, Response};
 use crate::db::dbmetadata::DBMetadata;
 use crate::db::fileformat::page::Page;
-use crate::db::parser::{Parser, query::{Query, SelectType}};
+use crate::db::fileformat::record::Record;
+use crate::db::parser::{
+    Parser,
+    query::{Query, SelectType, Statement},
+};
 use anyhow::{Result, anyhow};
 use std::fs::File;
 use std::io::BufReader;
@@ -18,9 +22,9 @@ use std::io::{Read, Seek, SeekFrom};
 
 pub mod db_response;
 pub mod dbmetadata;
-pub mod table;
 pub mod fileformat;
 pub mod parser;
+pub mod table;
 
 pub struct DB {
     metadata: DBMetadata,
@@ -100,11 +104,15 @@ impl DB {
         let rootpage = table.rootpage;
         let mut response: Response = vec![];
 
-
-
-        // We build a vec of index to cols that select needs
-        // TODO: refactor. 
+        // We build a vec of indexes of columnss that select needs
         let col_indexes: Vec<usize> = self.get_column_indexes(&query.select, &table)?;
+
+        let where_statement = &query.wh.get(0);
+        let where_col_index = if let Some(where_statement) = where_statement {
+            Some(table.get_col_index(&where_statement.left))
+        } else {
+            None
+        };
 
         // We retrieve the cols values for each row
         let page = self.get_page(rootpage)?;
@@ -114,8 +122,15 @@ impl DB {
         for n in 0..page.get_record_number() {
             let mut row = vec![];
             let record = page.get_nth_record(n);
+            if let (Some(where_col_index), Some(where_statement)) =
+                (where_col_index, where_statement)
+            {
+                if !self.match_where(&record, where_col_index, &where_statement) {
+                    continue;
+                }
+            }
             for col_index in col_indexes.iter() {
-                row.push(record.get_col(*col_index))
+                row.push(record.get_col(*col_index));
             }
             response.push(row);
         }
@@ -123,9 +138,23 @@ impl DB {
         Ok(response)
     }
 
-    fn get_column_indexes(&self, select: &Vec<SelectType>, table: &table::Table) -> Result<Vec<usize>> {
+    fn match_where(
+        &self,
+        record: &Record,
+        where_col_index: usize,
+        where_statement: &Statement,
+    ) -> bool {
+        let value = record.get_col(where_col_index);
+        where_statement.cmp(value)
+    }
+
+    fn get_column_indexes(
+        &self,
+        select: &Vec<SelectType>,
+        table: &table::Table,
+    ) -> Result<Vec<usize>> {
         let mut col_indexes = vec![];
-        if let SelectType::Function(ref func) = select[0]  {
+        if let SelectType::Function(ref func) = select[0] {
             if func == "count(*)" {
                 return Ok(col_indexes);
             } else {

@@ -1,5 +1,6 @@
 //! A simple representation of a database query.
 //! It supports SELECT and FROM clauses.
+use crate::db::db_response::RType;
 use crate::db::parser::tokenizer::Token;
 use std::fmt;
 
@@ -68,6 +69,9 @@ impl Query {
     }
 
     pub fn push_where(&mut self, left: Token, operator: Token, right: Token) {
+        let Token::Ident(left) = left else {
+            panic!("Error: Query push where: invalid left Token");
+        };
         self.wh.push(Statement {
             left,
             operator: Operator::from_token(operator),
@@ -95,7 +99,90 @@ impl fmt::Display for Query {
 // TODO: left and right need to be statement
 #[derive(Debug, PartialEq)]
 pub struct Statement {
-    pub left: Token,
+    pub left: String,
     pub operator: Operator,
     pub right: Token,
+}
+
+impl Statement {
+    pub fn cmp(&self, rhs: RType) -> bool {
+        match self.operator {
+            Operator::Equal => self.eq(rhs),
+            Operator::NotEqual => !self.eq(rhs),
+            Operator::GT => self.gt(rhs),
+            Operator::LT => self.lt(rhs),
+            Operator::GTEQ => self.gte(rhs),
+            Operator::LTEQ => self.lte(rhs),
+        }
+    }
+
+    fn eq(&self, rhs: RType) -> bool {
+        match self.right {
+            Token::Num(right) => match rhs {
+                RType::Num(left) => left == right,
+                _ => false,
+            },
+            Token::QIdent(ref right) => match rhs {
+                RType::Str(left) => left == *right,
+                _ => false,
+            },
+            _ => panic!("Should not compare here"),
+        }
+    }
+
+    fn gt(&self, rhs: RType) -> bool {
+        match self.right {
+            Token::Num(right) => match rhs {
+                RType::Num(left) => left > right,
+                _ => false,
+            },
+            Token::QIdent(ref right) => match rhs {
+                RType::Str(ref left) => left < right,
+                _ => false,
+            },
+            _ => panic!("Should not compare here"),
+        }
+    }
+
+    fn lt(&self, rhs: RType) -> bool {
+        match self.right {
+            Token::Num(right) => match rhs {
+                RType::Num(left) => left < right,
+                _ => false,
+            },
+            Token::QIdent(ref right) => match rhs {
+                RType::Str(left) => left < *right,
+                _ => false,
+            },
+            _ => panic!("Should not compare here"),
+        }
+    }
+
+    fn lte(&self, rhs: RType) -> bool {
+        match self.right {
+            Token::Num(right) => match rhs {
+                RType::Num(left) => left <= right,
+                _ => false,
+            },
+            Token::QIdent(ref right) => match rhs {
+                RType::Str(left) => left <= *right,
+                _ => false,
+            },
+            _ => panic!("Should not compare here"),
+        }
+    }
+
+    fn gte(&self, rhs: RType) -> bool {
+        match self.right {
+            Token::Num(right) => match rhs {
+                RType::Num(value) => value >= right,
+                _ => false,
+            },
+            Token::QIdent(ref right) => match rhs {
+                RType::Str(left) => left <= *right,
+                _ => false,
+            },
+            _ => panic!("Should not compare here"),
+        }
+    }
 }
