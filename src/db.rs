@@ -10,7 +10,7 @@
 use crate::db::db_response::{RType, Response};
 use crate::db::dbmetadata::DBMetadata;
 use crate::db::fileformat::page::Page;
-use crate::db::parser::{Parser, query::Query};
+use crate::db::parser::{Parser, query::{Query, SelectType}};
 use anyhow::{Result, anyhow};
 use std::fs::File;
 use std::io::BufReader;
@@ -100,24 +100,17 @@ impl DB {
         let rootpage = table.rootpage;
         let mut response: Response = vec![];
 
-        let mut cols: Vec<&str> = vec![];
-        for value in query.select.iter() {
-            cols.push(value);
-        }
 
-        let mut col_indexes: Vec<usize> = vec![];
-        for col_name in cols {
-            if col_name.to_lowercase().contains("count") {
-                let page = self.get_page(rootpage)?;
-                let row_count = page.get_record_number() as i64;
-                let cell = RType::Num(row_count);
-                return Ok(vec![vec![cell]]);
-            } else {
-                col_indexes.push(table.get_col_index(col_name));
-            }
-        }
 
+        // We build a vec of index to cols that select needs
+        // TODO: refactor. 
+        let col_indexes: Vec<usize> = self.get_column_indexes(&query.select, &table)?;
+
+        // We retrieve the cols values for each row
         let page = self.get_page(rootpage)?;
+        if col_indexes.len() == 0 {
+            return Ok(vec![vec![RType::Num(page.get_record_number() as i64)]]);
+        }
         for n in 0..page.get_record_number() {
             let mut row = vec![];
             let record = page.get_nth_record(n);
@@ -128,5 +121,27 @@ impl DB {
         }
 
         Ok(response)
+    }
+
+    fn get_column_indexes(&self, select: &Vec<SelectType>, table: &table::Table) -> Result<Vec<usize>> {
+        let mut col_indexes = vec![];
+        if let SelectType::Function(ref func) = select[0]  {
+            if func == "count(*)" {
+                // count(*) does not need any column index
+                return Ok(col_indexes);
+            } else {
+                return Err(anyhow!("Unsupported function in select"));
+            }
+        } else {
+            for select_type in select.iter() {
+                if let SelectType::Value(value) = select_type {
+                    let col_index = table.get_col_index(value);
+                    col_indexes.push(col_index);
+                } else {
+                    return Err(anyhow!("Unsupported select type"));
+                }
+            }
+            Ok(col_indexes)
+        }
     }
 }

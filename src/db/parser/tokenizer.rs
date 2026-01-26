@@ -33,6 +33,9 @@ impl Iterator for Tokenizer<'_> {
     type Item = Token;
 
     // Returns the next token, consuming it
+    // TODO: add token COUNT
+    // add TOKEN *
+    // add TOKEN open parenthesis and close one
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(peeked) = self.peeked.take() {
             return Some(peeked);

@@ -34,6 +34,8 @@ impl<'a> Parser<'a> {
 
     fn parse_select(&mut self, mut query: Query) -> Result<Query> {
         loop {
+            // TODO: Handle function token, a function has a list of params
+            // It expects no values after nor comas
             let Some(peek) = self.tokenizer.peek() else {
                 return Err(anyhow!("Error: parser: unexpected EOF"));
             };

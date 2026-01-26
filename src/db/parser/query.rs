@@ -2,10 +2,26 @@
 //! It supports SELECT and FROM clauses.
 use std::fmt;
 
+#[derive(Debug)]
+pub enum SelectType {
+    Function(String),
+    Value(String)
+}
+
+impl fmt::Display for SelectType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            SelectType::Function(func) => write!(f, "{}", func),
+            SelectType::Value(value) => write!(f, "{}", value),
+        }
+    }
+}
+
+
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct Query {
-    pub select: Vec<String>,
+    pub select: Vec<SelectType>,
     pub from: String,
 }
 
@@ -18,7 +34,11 @@ impl Query {
     }
 
     pub fn push_select(&mut self, value: String) {
-        self.select.push(value);
+        if value.to_lowercase().contains("count") {
+            self.select.push(SelectType::Function(value));
+        } else {
+            self.select.push(SelectType::Value(value));
+        }
     }
 
     pub fn set_from(&mut self, from: String) {
@@ -28,13 +48,7 @@ impl Query {
 
 impl fmt::Display for Query {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut select = String::new();
-        for (i, value) in self.select.iter().enumerate() {
-            if i != 0 {
-                select.push(' ');
-            }
-            select.push_str(value);
-        }
+        let select = self.select.iter().map(|value| value.to_string()).collect::<Vec<_>>().join(", ");
         write!(f, "Query: SELECT {} FROM {}", select, self.from)
     }
 }
