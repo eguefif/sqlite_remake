@@ -72,7 +72,12 @@ impl<'a> Parser<'a> {
         let Some(peek) = self.tokenizer.peek() else {
             return Ok(query);
         };
-        if *peek != Token::Where {
+        if *peek == Token::Where {
+            self.tokenizer.next();
+            let left = self.tokenizer.next().unwrap();
+            let operator = self.tokenizer.next().unwrap();
+            let right = self.tokenizer.next().unwrap();
+            query.push_where(left, operator, right);
             return Ok(query);
         }
 
@@ -150,5 +155,31 @@ impl Iterator for Parser<'_> {
             // If there was no semicolon but no token left, then it's ok
         }
         Some(Ok(query))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::parser::query::{Operator, SelectType, Statement};
+
+    #[test]
+    fn it_should_parse_query() {
+        let mut parser = Parser::new("SELECT name, color FROM apples WHERE name = 'hey';");
+        let expected_query = Query {
+            select: vec![
+                SelectType::Value("name".to_string()),
+                SelectType::Value("color".to_string()),
+            ],
+            from: "apples".to_string(),
+            wh: vec![Statement {
+                left: Token::Ident("name".to_string()),
+                operator: Operator::Equal,
+                right: Token::QIdent("hey".to_string()),
+            }],
+        };
+        let query = parser.next().unwrap().unwrap();
+
+        assert_eq!(query, expected_query);
     }
 }

@@ -103,13 +103,18 @@ pub enum Token {
     Ident(String),
     SemiColon,
     Where,
-    Equal,
     QIdent(String),
     Num(i64),
     RParen,
     LParen,
     Star,
     Null,
+    Equal,
+    NotEq,
+    GT,
+    LT,
+    GTEQ,
+    LTEQ,
 }
 
 impl Token {
@@ -126,6 +131,11 @@ impl Token {
             "*" => Token::Star,
             "Null" => Token::Null,
             "=" => Token::Equal,
+            "!=" => Token::NotEq,
+            ">" => Token::GT,
+            "<" => Token::LT,
+            ">=" => Token::GTEQ,
+            "<=" => Token::LTEQ,
             _ => {
                 // TODO: handle error
                 if lower_str.chars().next().unwrap().is_numeric() {
@@ -150,13 +160,18 @@ impl fmt::Display for Token {
             Token::SemiColon => write!(f, ";"),
             Token::Ident(value) => write!(f, "{}", value),
             Token::QIdent(value) => write!(f, "'{}'", value),
-            Token::Equal => write!(f, "="),
             Token::Where => write!(f, "WHERE"),
             Token::RParen => write!(f, "("),
             Token::LParen => write!(f, ")"),
             Token::Star => write!(f, "*"),
-            Token::Num(value) => write!(f, "{}", value),
             Token::Null => write!(f, "NULL"),
+            Token::Num(value) => write!(f, "{}", value),
+            Token::Equal => write!(f, "="),
+            Token::NotEq => write!(f, "!="),
+            Token::GT => write!(f, ">"),
+            Token::LT => write!(f, "<"),
+            Token::GTEQ => write!(f, ">="),
+            Token::LTEQ => write!(f, "<="),
         }
     }
 }
