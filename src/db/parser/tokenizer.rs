@@ -89,6 +89,9 @@ pub enum Token {
     From,
     Value(String),
     SemiColon,
+    Where,
+    Equal,
+    Var(String),
 }
 
 impl Token {
@@ -99,7 +102,12 @@ impl Token {
             "from" => Token::From,
             "," => Token::Coma,
             ";" => Token::SemiColon,
-            _ => Token::Value(lower_str),
+            _ => {
+                if lower_str.starts_with("\'") {
+                    return Token::Var(lower_str);
+                }
+                return Token::Value(lower_str);
+            }
         }
     }
 }
@@ -112,6 +120,9 @@ impl fmt::Display for Token {
             Token::From => write!(f, "Token::From"),
             Token::SemiColon => write!(f, "Token::SemiColon"),
             Token::Value(value) => write!(f, "Token::Value({})", value),
+            Token::Var(value) => write!(f, "Token::Var({})", value),
+            Token::Equal => write!(f, "Token::Equal"),
+            Token::Where => write!(f, "Token::Where"),
         }
     }
 }

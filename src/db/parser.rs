@@ -68,6 +68,17 @@ impl<'a> Parser<'a> {
         Ok(query)
     }
 
+    fn try_parse_where(&mut self, mut query: Query) -> Result<Query> {
+        let Some(peek) = self.tokenizer.peek() else {
+            return Ok(query);
+        };
+        if *peek != Token::Where {
+            return Ok(query);
+        }
+
+        Ok(query)
+    }
+
     // If the next token matches the expected token, consume it and return it
     // if not, returns an error
     // If there is no next token, return None
@@ -124,6 +135,10 @@ impl Iterator for Parser<'_> {
         };
         let Ok(query) = self.parse_from(query) else {
             return Some(Err(anyhow!("Error: parser: FROM clause malformed")));
+        };
+
+        let Ok(query) = self.try_parse_where(query) else {
+            return Some(Err(anyhow!("Error: parser: WHERE clause malformed")));
         };
 
         // Expect a semicolon at the end of the query

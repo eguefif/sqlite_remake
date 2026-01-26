@@ -17,12 +17,22 @@ impl fmt::Display for SelectType {
     }
 }
 
+pub enum Operator {
+    Equal,
+    NotEqual,
+    GreaterThan,
+    LessThan,
+    GreaterThanOrEqual,
+    LessThanOrEqual,
+}
+
 
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct Query {
     pub select: Vec<SelectType>,
     pub from: String,
+    pub where: Option<(String, String, Operator)>,
 }
 
 impl Query {
@@ -30,6 +40,7 @@ impl Query {
         Self {
             select: vec![],
             from: "".to_string(),
+            where: None
         }
     }
 

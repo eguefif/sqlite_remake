@@ -127,7 +127,6 @@ impl DB {
         let mut col_indexes = vec![];
         if let SelectType::Function(ref func) = select[0]  {
             if func == "count(*)" {
-                // count(*) does not need any column index
                 return Ok(col_indexes);
             } else {
                 return Err(anyhow!("Unsupported function in select"));
