@@ -8,7 +8,7 @@ pub enum Token {
     Coma,
     From,
     Value(String),
-    SemiComa,
+    SemiColon,
 }
 
 impl Token {
@@ -18,7 +18,7 @@ impl Token {
             "select" => Token::Select,
             "from" => Token::From,
             "," => Token::Coma,
-            ";" => Token::SemiComa,
+            ";" => Token::SemiColon,
             _ => Token::Value(lower_str),
         }
     }
@@ -30,7 +30,7 @@ impl fmt::Display for Token {
             Token::Select => write!(f, "Token::Select"),
             Token::Coma => write!(f, "Token::Coma"),
             Token::From => write!(f, "Token::From"),
-            Token::SemiComa => write!(f, "Token::SemiComa"),
+            Token::SemiColon => write!(f, "Token::SemiColon"),
             Token::Value(value) => write!(f, "Token::Value({})", value),
         }
     }

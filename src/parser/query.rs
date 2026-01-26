@@ -1,3 +1,5 @@
+//! A simple representation of a database query.
+//! It supports SELECT and FROM clauses.
 use std::fmt;
 
 #[allow(dead_code)]
