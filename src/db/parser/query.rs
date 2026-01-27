@@ -6,14 +6,14 @@ use std::fmt;
 
 #[derive(Debug, PartialEq)]
 pub enum SelectType {
-    Function(String),
+    Function((String, Vec<String>)),
     Value(String),
 }
 
 impl fmt::Display for SelectType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            SelectType::Function(func) => write!(f, "{}", func),
+            SelectType::Function((func, values)) => write!(f, "{}({})", func, values.join(", ")),
             SelectType::Value(value) => write!(f, "{}", value),
         }
     }
@@ -62,9 +62,20 @@ impl Query {
 
     pub fn push_select(&mut self, value: String) {
         if value.to_lowercase().contains("count") {
-            self.select.push(SelectType::Function(value));
+            self.select.push(SelectType::Function((value, vec![])));
         } else {
             self.select.push(SelectType::Value(value));
+        }
+    }
+
+    pub fn push_to_function(&mut self, func: String, value: String) {
+        for entry in self.select.iter_mut() {
+            if let SelectType::Function((f, values)) = entry {
+                if *f == func {
+                    values.push(value);
+                    break;
+                }
+            }
         }
     }
 

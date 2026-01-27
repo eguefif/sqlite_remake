@@ -56,11 +56,42 @@ impl Iterator for Tokenizer<'_> {
         self.trim_space();
         let mut next = self.buffer.next().unwrap();
         match next {
-            ';' => return Some(Token::from_str(";")),
-            ',' => return Some(Token::from_str(",")),
-            '(' => return Some(Token::from_str("(")),
-            ')' => return Some(Token::from_str(")")),
-            '*' => return Some(Token::from_str("*")),
+            ';' => return Some(Token::SemiColon),
+            ',' => return Some(Token::Coma),
+            '(' => return Some(Token::LParen),
+            ')' => return Some(Token::RParen),
+            '+' => return Some(Token::Plus),
+            '-' => return Some(Token::Minus),
+            '/' => return Some(Token::Div),
+            '*' => return Some(Token::Star),
+            '=' => return Some(Token::Equal),
+            '!' => {
+                if let Some(peek) = self.buffer.peek() {
+                    if *peek == '=' {
+                        self.buffer.next();
+                        return Some(Token::NotEq);
+                    }
+                }
+                return Some(Token::Illegal("!".to_string()));
+            }
+            '>' => {
+                if let Some(peek) = self.buffer.peek() {
+                    if *peek == '=' {
+                        self.buffer.next();
+                        return Some(Token::GTEQ);
+                    }
+                }
+                return Some(Token::GT);
+            }
+            '<' => {
+                if let Some(peek) = self.buffer.peek() {
+                    if *peek == '=' {
+                        self.buffer.next();
+                        return Some(Token::LTEQ);
+                    }
+                }
+                return Some(Token::LT);
+            }
             _ => {
                 let mut token_str = String::new();
                 loop {
@@ -84,7 +115,7 @@ impl Iterator for Tokenizer<'_> {
     }
 }
 
-const STOP_CHARS: [char; 6] = [';', '(', ')', ',', ' ', '*'];
+const STOP_CHARS: [char; 12] = [';', '(', ')', ',', ' ', '*', '=', '<', '!', '>', '+', '-'];
 
 fn is_stop_identifier(c: char) -> bool {
     for stop_char in STOP_CHARS.iter() {
@@ -97,24 +128,31 @@ fn is_stop_identifier(c: char) -> bool {
 
 #[derive(PartialEq, Debug)]
 pub enum Token {
+    Illegal(String),
     Select,
-    Coma,
     From,
-    Ident(String),
-    SemiColon,
     Where,
+    Null,
+    Not,
+    Like,
+    ILike,
+    Ident(String),
     QIdent(String),
     Num(i64),
+    Coma,
+    SemiColon,
     RParen,
     LParen,
     Star,
-    Null,
     Equal,
     NotEq,
     GT,
     LT,
     GTEQ,
     LTEQ,
+    Plus,
+    Minus,
+    Div,
 }
 
 impl Token {
@@ -124,18 +162,24 @@ impl Token {
             "where" => Token::Where,
             "select" => Token::Select,
             "from" => Token::From,
+            "null" => Token::Null,
+            "not" => Token::Not,
+            "like" => Token::Like,
+            "ilike" => Token::ILike,
             "," => Token::Coma,
             ";" => Token::SemiColon,
             "(" => Token::LParen,
             ")" => Token::RParen,
             "*" => Token::Star,
-            "Null" => Token::Null,
             "=" => Token::Equal,
             "!=" => Token::NotEq,
             ">" => Token::GT,
             "<" => Token::LT,
             ">=" => Token::GTEQ,
             "<=" => Token::LTEQ,
+            "+" => Token::Plus,
+            "-" => Token::Minus,
+            "/" => Token::Div,
             _ => {
                 // TODO: handle error
                 if lower_str.chars().next().unwrap().is_numeric() {
@@ -155,23 +199,30 @@ impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Token::Select => write!(f, "SELECT"),
-            Token::Coma => write!(f, ","),
+            Token::Where => write!(f, "WHERE"),
             Token::From => write!(f, "FROM"),
+            Token::Not => write!(f, "NOT"),
+            Token::Like => write!(f, "LIKE"),
+            Token::ILike => write!(f, "ILIKE"),
+            Token::RParen => write!(f, "("),
+            Token::LParen => write!(f, ")"),
+            Token::Coma => write!(f, ","),
             Token::SemiColon => write!(f, ";"),
             Token::Ident(value) => write!(f, "{}", value),
             Token::QIdent(value) => write!(f, "'{}'", value),
-            Token::Where => write!(f, "WHERE"),
-            Token::RParen => write!(f, "("),
-            Token::LParen => write!(f, ")"),
+            Token::Num(value) => write!(f, "{}", value),
             Token::Star => write!(f, "*"),
             Token::Null => write!(f, "NULL"),
-            Token::Num(value) => write!(f, "{}", value),
             Token::Equal => write!(f, "="),
             Token::NotEq => write!(f, "!="),
             Token::GT => write!(f, ">"),
             Token::LT => write!(f, "<"),
             Token::GTEQ => write!(f, ">="),
             Token::LTEQ => write!(f, "<="),
+            Token::Plus => write!(f, "+"),
+            Token::Minus => write!(f, "-"),
+            Token::Div => write!(f, "/"),
+            Token::Illegal(value) => write!(f, "Illegal token: {}", value),
         }
     }
 }
@@ -249,5 +300,73 @@ mod tests {
             Tokenizer::new("SELECT name, color, number FROM apples WHERE name = 'hey';");
 
         assert_eq!(tokenizer.collect::<Vec<Token>>().len(), 13);
+    }
+
+    #[test]
+    fn it_should_tokenize_all_token() {
+        let tokenizer = Tokenizer::new(
+            "SELECT COUNT(*), name, color, number FROM apples WHERE name = 'hey' +- / <= >= != NULL Not like Ilike 25;",
+        );
+
+        let expected_tokens = [
+            Token::Select,
+            Token::Ident("count".to_string()),
+            Token::LParen,
+            Token::Star,
+            Token::RParen,
+            Token::Coma,
+            Token::Ident("name".to_string()),
+            Token::Coma,
+            Token::Ident("color".to_string()),
+            Token::Coma,
+            Token::Ident("number".to_string()),
+            Token::From,
+            Token::Ident("apples".to_string()),
+            Token::Where,
+            Token::Ident("name".to_string()),
+            Token::Equal,
+            Token::QIdent("hey".to_string()),
+            Token::Plus,
+            Token::Minus,
+            Token::Div,
+            Token::LTEQ,
+            Token::GTEQ,
+            Token::NotEq,
+            Token::Null,
+            Token::Not,
+            Token::Like,
+            Token::ILike,
+            Token::Num(25),
+        ];
+
+        for (expected, token) in expected_tokens.into_iter().zip(tokenizer) {
+            assert_eq!(token, expected);
+        }
+    }
+
+    #[test]
+    fn it_should_tokenize_all_token_no_space() {
+        let tokenizer = Tokenizer::new("name='hey'+-/<=>=!=NULL Not like Ilike 25;");
+
+        let expected_tokens = [
+            Token::Ident("name".to_string()),
+            Token::Equal,
+            Token::QIdent("hey".to_string()),
+            Token::Plus,
+            Token::Minus,
+            Token::Div,
+            Token::LTEQ,
+            Token::GTEQ,
+            Token::NotEq,
+            Token::Null,
+            Token::Not,
+            Token::Like,
+            Token::ILike,
+            Token::Num(25),
+        ];
+
+        for (expected, token) in expected_tokens.into_iter().zip(tokenizer) {
+            assert_eq!(token, expected);
+        }
     }
 }

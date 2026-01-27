@@ -24,7 +24,9 @@ pub mod tokenizer;
 pub struct Parser<'a> {
     tokenizer: Tokenizer<'a>,
 }
-
+// TODO: need to parse sql correctly
+// It's getting out of what for now.
+// Need to study the language and what are the building parts
 impl<'a> Parser<'a> {
     pub fn new(query_str: &'a str) -> Self {
         Self {
@@ -34,14 +36,16 @@ impl<'a> Parser<'a> {
 
     fn parse_select(&mut self, mut query: Query) -> Result<Query> {
         loop {
-            // TODO: Handle function token, a function has a list of params
-            // It expects no values after nor comas
             let Some(peek) = self.tokenizer.peek() else {
                 return Err(anyhow!("Error: parser: unexpected EOF"));
             };
             match peek {
                 Token::Ident(_) => {
                     if let Token::Ident(value) = self.tokenizer.next().unwrap() {
+                        if self.is_function(&value) {
+                            self.expect_token(Token::LParen)?;
+                            let values = self.parse_values();
+                        }
                         query.push_select(value);
                     } else {
                         panic!("Unreachable code reached");
@@ -54,6 +58,17 @@ impl<'a> Parser<'a> {
             }
         }
         Ok(query)
+    }
+
+    fn is_function(&self, value: &str) -> bool {
+        match value {
+            "count" => true,
+            _ => false,
+        }
+    }
+
+    fn parse_values(&mut self) -> Vec<String> {
+        loop {}
     }
 
     fn parse_from(&mut self, mut query: Query) -> Result<Query> {

@@ -154,8 +154,8 @@ impl DB {
         table: &table::Table,
     ) -> Result<Vec<usize>> {
         let mut col_indexes = vec![];
-        if let SelectType::Function(ref func) = select[0] {
-            if func == "count(*)" {
+        if let SelectType::Function((ref func, _)) = select[0] {
+            if func == "count" {
                 return Ok(col_indexes);
             } else {
                 return Err(anyhow!("Unsupported function in select"));
