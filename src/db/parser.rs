@@ -12,91 +12,27 @@
 //!    }
 //! ```
 use crate::db::parser::{
-    query::Query,
+    select::{Select, SelectStatement},
+    statement::Statement,
     tokenizer::{Token, Tokenizer},
 };
 use anyhow::{Result, anyhow};
 use std::iter::Iterator;
 
-pub mod query;
+pub mod function;
+pub mod identifier;
+pub mod select;
+pub mod statement;
 pub mod tokenizer;
 
 pub struct Parser<'a> {
     tokenizer: Tokenizer<'a>,
 }
-// TODO: need to parse sql correctly
-// It's getting out of what for now.
-// Need to study the language and what are the building parts
 impl<'a> Parser<'a> {
     pub fn new(query_str: &'a str) -> Self {
         Self {
             tokenizer: Tokenizer::new(query_str),
         }
-    }
-
-    fn parse_select(&mut self, mut query: Query) -> Result<Query> {
-        loop {
-            let Some(peek) = self.tokenizer.peek() else {
-                return Err(anyhow!("Error: parser: unexpected EOF"));
-            };
-            match peek {
-                Token::Ident(_) => {
-                    if let Token::Ident(value) = self.tokenizer.next().unwrap() {
-                        if self.is_function(&value) {
-                            self.expect_token(Token::LParen)?;
-                            let values = self.parse_values();
-                        }
-                        query.push_select(value);
-                    } else {
-                        panic!("Unreachable code reached");
-                    }
-                }
-                Token::Coma => {
-                    self.tokenizer.next().unwrap();
-                }
-                _ => break,
-            }
-        }
-        Ok(query)
-    }
-
-    fn is_function(&self, value: &str) -> bool {
-        match value {
-            "count" => true,
-            _ => false,
-        }
-    }
-
-    fn parse_values(&mut self) -> Vec<String> {
-        loop {}
-    }
-
-    fn parse_from(&mut self, mut query: Query) -> Result<Query> {
-        self.expect_token(Token::From)?;
-        if let Some(token) = self.tokenizer.next() {
-            if let Token::Ident(value) = token {
-                query.set_from(value)
-            } else {
-                return Err(anyhow!("Error: parser: no table for FROM"));
-            }
-        }
-        Ok(query)
-    }
-
-    fn try_parse_where(&mut self, mut query: Query) -> Result<Query> {
-        let Some(peek) = self.tokenizer.peek() else {
-            return Ok(query);
-        };
-        if *peek == Token::Where {
-            self.tokenizer.next();
-            let left = self.tokenizer.next().unwrap();
-            let operator = self.tokenizer.next().unwrap();
-            let right = self.tokenizer.next().unwrap();
-            query.push_where(left, operator, right);
-            return Ok(query);
-        }
-
-        Ok(query)
     }
 
     // If the next token matches the expected token, consume it and return it
@@ -135,66 +71,45 @@ impl<'a> Parser<'a> {
         }
         Err(anyhow!("Expected token {} but got EOF", expected_token))
     }
+
+    fn parse_select(&mut self, token: Token) -> Result<Statement> {
+        let mut select = Select::new(token);
+
+        let select_statement = SelectStatement::new(select, "".to_string(), "".to_string());
+        // TODO: impl a function that get value or function
+
+        Ok(Statement::Select(select_statement))
+    }
 }
 
 impl Iterator for Parser<'_> {
-    type Item = Result<Query>;
+    type Item = Result<Statement>;
 
     // Parse the next query
     fn next(&mut self) -> Option<Self::Item> {
-        if let None = self.tokenizer.peek() {
+        let Some(token) = self.tokenizer.next() else {
             return None;
-        }
-        let query = Query::new();
-        if let Err(error) = self.expect_token(Token::Select) {
-            return Some(Err(error));
-        }
-
-        let Ok(query) = self.parse_select(query) else {
-            return Some(Err(anyhow!("Error: parser: SELECT clause malformed")));
         };
-        let Ok(query) = self.parse_from(query) else {
-            return Some(Err(anyhow!("Error: parser: FROM clause malformed")));
+        let stmt = match token {
+            Token::Select => self.parse_select(token),
+            _ => todo!("Do update and insert ..."),
         };
 
-        let Ok(query) = self.try_parse_where(query) else {
-            return Some(Err(anyhow!("Error: parser: WHERE clause malformed")));
-        };
-
-        // Expect a semicolon at the end of the query
-        if let Err(error) = self.expect_token(Token::SemiColon) {
-            // If there is token left and not semicolon, return an error
-            if let Some(_) = self.tokenizer.peek() {
-                return Some(Err(error));
-            }
-            // If there was no semicolon but no token left, then it's ok
-        }
-        Some(Ok(query))
+        Some(stmt)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::parser::query::{Operator, SelectType, Statement};
 
     #[test]
-    fn it_should_parse_query() {
-        let mut parser = Parser::new("SELECT name, color FROM apples WHERE name = 'hey';");
-        let expected_query = Query {
-            select: vec![
-                SelectType::Value("name".to_string()),
-                SelectType::Value("color".to_string()),
-            ],
-            from: "apples".to_string(),
-            wh: vec![Statement {
-                left: "name".to_string(),
-                operator: Operator::Equal,
-                right: Token::QIdent("hey".to_string()),
-            }],
-        };
-        let query = parser.next().unwrap().unwrap();
+    fn it_should_parse_select_with_count() {
+        let query = "SELECT COUNT(*)";
+        let mut parser = Parser::new("SELECT COUNT(*)");
 
-        assert_eq!(query, expected_query);
+        let parsed_query = parser.next().unwrap().unwrap();
+        let result = format!("{}", parsed_query);
+        assert_eq!(query, result)
     }
 }

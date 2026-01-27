@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use codecrafters_sqlite::db::{DB, parser::query::Query, db_response::Response};
+use codecrafters_sqlite::db::{DB, db_response::Response, parser::statement::Statement};
 
 fn main() -> Result<()> {
     // Parse arguments
@@ -20,7 +20,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn display_response(responses: &[(Query, Response)]) {
+fn display_response(responses: &[(Statement, Response)]) {
     for (_, response) in responses {
         for row in response {
             for (i, col) in row.iter().enumerate() {
