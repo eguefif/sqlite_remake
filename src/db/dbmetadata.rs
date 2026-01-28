@@ -18,7 +18,7 @@ impl DBMetadata {
     fn create_table_schema(page: &Page) -> SchemaTable {
         let mut schema: SchemaTable = HashMap::new();
         for n in 0..page.get_record_number() {
-            let record = page.get_nth_record(n);
+            let mut record = page.get_nth_record(n);
             let FieldType::TStr(table_type) = record.get_col(0) else {
                 panic!("Wrong type table type schema")
             };

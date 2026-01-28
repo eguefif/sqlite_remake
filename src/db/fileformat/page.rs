@@ -17,6 +17,7 @@
 //! [Sqlite fileformat documentation](https://www.sqlite.org/fileformat.html)
 use crate::db::fileformat::record::Record;
 use anyhow::Result;
+use bytemuck::cast_slice;
 use byteorder::{BigEndian, ReadBytesExt};
 use std::io::Cursor;
 
@@ -81,13 +82,13 @@ impl Page {
 
     /// cell_pointer_array are pointers to page cells
     /// cells are records
-    pub fn get_cell_pointer_array(&self) -> &[u8] {
+    pub fn get_cell_pointer_array(&self) -> &[u16] {
         let buffer = self.get_page_buffer();
         let cell_number = self.page_header.cell_number;
         if self.page_header.btree_type == BTreeType::InteriorPage {
-            return &buffer[12..12 + cell_number as usize * 2];
+            return cast_slice(&buffer[12..12 + cell_number as usize * 2]);
         } else {
-            return &buffer[8..8 + cell_number as usize * 2];
+            return cast_slice(&buffer[8..8 + cell_number as usize * 2]);
         }
     }
 
@@ -102,6 +103,18 @@ impl Page {
         }
     }
 
+    pub fn get_all_rows(&self) -> Result<Vec<Record>> {
+        let mut rows = vec![];
+        let cell_array = self.get_cell_pointer_array();
+
+        for cell_index in cell_array {
+            let record = Record::new(&self.get_slice(*cell_index as usize, None))?;
+            rows.push(record);
+        }
+
+        Ok(rows)
+    }
+
     /// This function is used to iterate over records in a page
     /// # Example
     /// ```no_run
@@ -110,17 +123,15 @@ impl Page {
     ///    let record = page.get_nth_record(i);
     ///    // do something with the record
     /// }
-    pub fn get_nth_record(&self, index: usize) -> Record<'_> {
+    pub fn get_nth_record(&self, index: usize) -> Record {
         let cell_array = self.get_cell_pointer_array();
-        let offset_start = index * 2;
-        let mut cursor = Cursor::new(&cell_array[offset_start..]);
-        if let Ok(cell_start) = cursor.read_u16::<BigEndian>() {
-            // TODO: Handle error
+        if cell_array.len() > index {
+            let cell_start = cell_array[index];
             Record::new(&self.get_slice(cell_start as usize, None))
                 .expect("Error: indexing record, file parsing failed")
         } else {
-            // TODO: Handle error
-            panic!("Page error: out of bound index record")
+            // TODO: hadle error
+            panic!("Page: record retrieval failed, index is out of range")
         }
     }
 }

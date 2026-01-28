@@ -1,25 +1,24 @@
-use crate::db::fileformat::types::Varint;
 /// Module to handle Record parsing from a cell payload
 /// ! See 2.1 Record Format in https://www.sqlite.org/fileformat.html
 /// A record is contains by a Cell.
 // TODO: the mapping with RTYpe should be in RType, record should not know a thing about
 // the outside world
+use crate::db::fileformat::types::Varint;
 use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
 use std::io::{Cursor, Read};
 
 #[allow(unused)]
-pub struct Record<'a> {
+pub struct Record {
     cell_size: usize,
     rowid: usize,
     header: RecordHeader,
-    buffer: &'a [u8],
     record_start: usize, // When actual record start, after cell header + record header + rowid
-    pub fields: Vec<FieldType>,
+    fields: Vec<FieldType>,
 }
 
-impl<'a> Record<'a> {
-    pub fn new(buffer: &'a [u8]) -> Result<Self> {
+impl Record {
+    pub fn new(buffer: &[u8]) -> Result<Self> {
         // Parsing cell Header
         let cell_size = Varint::new(buffer);
         let rowid = Varint::new(&buffer[cell_size.size..]);
@@ -38,17 +37,13 @@ impl<'a> Record<'a> {
             cell_size: cell_size.varint as usize,
             rowid: rowid.varint as usize,
             header,
-            buffer: buffer,
             record_start,
             fields,
         })
     }
 
-    pub fn get_record(&self) -> &[u8] {
-        &self.buffer[self.record_start..]
-    }
-
-    pub fn get_col(&self, index: usize) -> FieldType {
+    /// Move out a value from the record
+    pub fn get_col(&mut self, index: usize) -> FieldType {
         self.fields.swap_remove(index)
     }
 }

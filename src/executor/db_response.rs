@@ -20,6 +20,7 @@
 //! ```
 //!
 use crate::db::fileformat::record::FieldType;
+use std::convert::From;
 use std::fmt::{Display, Formatter, Result};
 
 pub enum RType {
@@ -29,9 +30,9 @@ pub enum RType {
     Null,
 }
 
-impl RType {
-    pub fn from_fieldtype(field: FieldType) -> RType {
-        match field {
+impl From<FieldType> for RType {
+    fn from(item: FieldType) -> RType {
+        match item {
             FieldType::TNull => RType::Null,
             FieldType::TI8(value) => RType::Num(value as i64),
             FieldType::TI16(value) => RType::Num(value as i64),
