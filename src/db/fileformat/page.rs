@@ -7,7 +7,7 @@
 //! Note that for this page, the page header starts at 100 but the record offsets
 //! are relative to the start of the page (0).
 //!
-//! For now, we only suport B-Tree pages 
+//! For now, we only suport B-Tree pages
 //! A page is composed of the following:
 //! * a header [PageHeader]
 //! * a cell pointer array: array of u16 offsets to the cells
@@ -131,7 +131,7 @@ pub enum PageType {
     FreeList,
     Overflow,
     PointerMap,
-    LockByte
+    LockByte,
 }
 
 #[derive(PartialEq, Debug)]

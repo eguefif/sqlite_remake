@@ -1,5 +1,9 @@
 //! A simple database engine that can read a database file, parse queries, and return results. It contains struct to represent the database, its metadata, and responses.
 //!
+//! This module has two submodules:
+//! * [fileformat] contains what we need to parser the sqlite file
+//! * [dbmetadata] contains all the information on the sqlite database
+//!
 use crate::db::dbmetadata::DBMetadata;
 use crate::db::fileformat::page::Page;
 use anyhow::Result;

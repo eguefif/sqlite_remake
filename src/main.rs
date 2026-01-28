@@ -1,7 +1,8 @@
 use anyhow::{Result, bail};
 use codecrafters_sqlite::{
-    db::{DB, db_response::Response, parser::statement::Statement},
-    executor::Executor,
+    db::DB,
+    executor::{Executor, db_response::Response},
+    parser::statement::Statement,
 };
 
 fn main() -> Result<()> {

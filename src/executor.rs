@@ -18,9 +18,10 @@ impl Executor {
     /// Execute a command, which can be either a special command (like .dbinfo or .tables)
     /// or a SQL query.
     /// Returns None for special commands, or Some(Vec<(Query, Response)) for SQL queries.
-    /// See ([Response][executor::db_response::Response])
+    /// Response is a Vec<Vec<[Rtype](crate::executor::db_response)>>
     pub fn execute(&mut self, command: &str) -> Result<Option<Vec<(Statement, Response)>>> {
         match command {
+            // TODO: change print, should return a response
             ".dbinfo" => self.db.metadata.print_metadata(),
             ".tables" => self.db.metadata.print_table_names(),
             _ => {

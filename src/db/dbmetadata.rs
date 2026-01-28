@@ -1,5 +1,7 @@
-use crate::db::table::{SchemaTable, Table};
+//! This module offer an abstraction over the sqlite database metadata
+//!
 use crate::db::fileformat::page::Page;
+use crate::db::table::{SchemaTable, Table};
 use std::collections::HashMap;
 
 pub struct DBMetadata {
