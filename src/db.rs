@@ -9,8 +9,9 @@
 //!
 use crate::db::db_response::Response;
 use crate::db::dbmetadata::DBMetadata;
+use crate::db::executor::Executor;
 use crate::db::fileformat::page::Page;
-use crate::db::parser::statement::Statement;
+use crate::db::parser::{Parser, statement::Statement};
 use anyhow::Result;
 use std::fs::File;
 use std::io::BufReader;
@@ -18,6 +19,7 @@ use std::io::{Read, Seek, SeekFrom};
 
 pub mod db_response;
 pub mod dbmetadata;
+pub mod executor;
 pub mod fileformat;
 pub mod parser;
 pub mod table;
@@ -76,9 +78,22 @@ impl DB {
             ".dbinfo" => self.metadata.print_metadata(),
             ".tables" => self.metadata.print_table_names(),
             _ => {
-                todo!();
+                return self.execute_queries(command);
             }
         }
         Ok(None)
+    }
+
+    fn execute_queries(&self, queries: &str) -> Result<Option<Vec<(Statement, Response)>>> {
+        let parser = Parser::new(queries);
+        let mut results: Vec<(Statement, Response)> = vec![];
+        let executor = Executor::new();
+        for query in parser {
+            let statement = query?;
+            let result = executor.execute_query(&statement)?;
+            results.push((statement, result));
+        }
+
+        Ok(Some(results))
     }
 }

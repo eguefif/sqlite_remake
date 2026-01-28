@@ -76,7 +76,18 @@ impl<'a> Parser<'a> {
 
     fn parse_select_statement(&mut self, token: Token) -> Result<Statement> {
         let select_clause = self.parse_select_clause(token)?;
-        let select_statement = SelectStatement::new(select_clause, "".to_string(), "".to_string());
+        let mut select_statement =
+            SelectStatement::new(select_clause, "".to_string(), "".to_string());
+
+        let Some(next) = self.tokenizer.next() else {
+            return Ok(Statement::Select(select_statement));
+        };
+
+        if next == Token::From {
+            self.parse_from(&mut select_statement)?;
+        } else {
+            return Err(anyhow!("Parsing: expected From got {}", next));
+        }
 
         Ok(Statement::Select(select_statement))
     }
@@ -140,6 +151,18 @@ impl<'a> Parser<'a> {
         self.expect_token(Token::RParen)?;
         Ok(SelectItem::Function(FuncCall::new(function_name, items)))
     }
+
+    fn parse_from(&mut self, select_statement: &mut SelectStatement) -> Result<()> {
+        let Some(next) = self.tokenizer.next() else {
+            return Err(anyhow!("Parsing: expected table in FROM statement got EOF",));
+        };
+        if let Token::Ident(value) = next {
+            select_statement.add_from(value);
+        } else {
+            return Err(anyhow!("Parsing:: expect table identifier got: {}", next));
+        }
+        Ok(())
+    }
 }
 
 impl Iterator for Parser<'_> {
@@ -177,6 +200,16 @@ mod tests {
     fn it_should_parse_select_with_count() {
         let query = "SELECT COUNT(*)";
         let mut parser = Parser::new("SELECT COUNT(*)");
+
+        let parsed_query = parser.next().unwrap().unwrap();
+        let result = format!("{}", parsed_query);
+        assert_eq!(query, result)
+    }
+
+    #[test]
+    fn it_should_parse_from() {
+        let query = "SELECT COUNT(*) FROM apples";
+        let mut parser = Parser::new("SELECT COUNT(*) FROM apples");
 
         let parsed_query = parser.next().unwrap().unwrap();
         let result = format!("{}", parsed_query);

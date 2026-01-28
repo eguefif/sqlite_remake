@@ -19,17 +19,21 @@ impl SelectStatement {
             where_clause,
         }
     }
+
+    pub fn add_from(&mut self, value: String) {
+        self.from_clause = value;
+    }
 }
 
 impl fmt::Display for SelectStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.select_clause)?;
         if self.from_clause.len() > 0 {
-            write!(f, " {}", self.from_clause)?;
+            write!(f, " FROM {}", self.from_clause)?;
         }
 
         if self.where_clause.len() > 0 {
-            write!(f, " {}", self.where_clause)?;
+            write!(f, " WHERE {}", self.where_clause)?;
         }
         Ok(())
     }
