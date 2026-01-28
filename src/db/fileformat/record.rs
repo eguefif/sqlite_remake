@@ -4,7 +4,6 @@ use crate::db::fileformat::types::Varint;
 /// A record is contains by a Cell.
 // TODO: the mapping with RTYpe should be in RType, record should not know a thing about
 // the outside world
-use crate::executor::db_response::RType;
 use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
 use std::io::{Cursor, Read};
@@ -49,8 +48,8 @@ impl<'a> Record<'a> {
         &self.buffer[self.record_start..]
     }
 
-    pub fn get_col(&self, index: usize) -> RType {
-        RType::from_fieldtype(self.fields[index].clone())
+    pub fn get_col(&self, index: usize) -> FieldType {
+        self.fields.swap_remove(index)
     }
 }
 

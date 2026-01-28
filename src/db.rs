@@ -51,12 +51,20 @@ impl DB {
 
     #[allow(dead_code)]
     fn get_page(&mut self, root_page: usize) -> Result<Page> {
-        let mut buffer = Vec::new();
-        buffer.resize(self.page_size, 0);
+        let mut page_buffer = self.get_new_page_buffer();
         // Page are numbered from 1, we need to subtract 1 to get the offset
         let offset = ((root_page - 1) * self.page_size) as u64;
         self.buf_reader.seek(SeekFrom::Start(offset))?;
-        self.buf_reader.read_exact(&mut buffer)?;
-        Page::new(buffer, root_page)
+        self.buf_reader.read_exact(&mut page_buffer)?;
+        Page::new(page_buffer, root_page)
+    }
+
+    // Utility function that is used to provide a buffer
+    // that can be used with read_exact or read.
+    // Using with_capacity does not work.
+    fn get_new_page_buffer(&self) -> Vec<u8> {
+        let mut buffer = Vec::new();
+        buffer.resize(self.page_size, 0);
+        buffer
     }
 }

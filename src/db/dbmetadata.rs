@@ -1,6 +1,6 @@
 //! This module offer an abstraction over the sqlite database metadata
 //!
-use crate::db::fileformat::page::Page;
+use crate::db::fileformat::{page::Page, record::FieldType};
 use crate::db::table::{SchemaTable, Table};
 use std::collections::HashMap;
 
@@ -18,11 +18,60 @@ impl DBMetadata {
     fn create_table_schema(page: &Page) -> SchemaTable {
         let mut schema: SchemaTable = HashMap::new();
         for n in 0..page.get_record_number() {
-            let mut record = page.get_nth_record(n);
-            let table = Table::new(&mut record);
-            schema.insert(table.tablename.clone(), table);
+            let record = page.get_nth_record(n);
+            let FieldType::TStr(table_type) = record.get_col(0) else {
+                panic!("Wrong type table type schema")
+            };
+            let FieldType::TStr(name) = record.get_col(1) else {
+                panic!("Wrong type name schema")
+            };
+            let FieldType::TStr(tablename) = record.get_col(2) else {
+                panic!("Wrong type tablename schema")
+            };
+            let FieldType::TStr(tabledef) = record.get_col(4) else {
+                panic!("Wrong type tabledef")
+            };
+
+            let cols_name = Self::get_cols_name(&tabledef);
+            let rootpage = Self::get_root_page(record.get_col(3));
+
+            let table = Table::new(table_type, name, rootpage, tabledef, cols_name);
+            schema.insert(tablename.to_string(), table);
         }
         schema
+    }
+
+    fn get_cols_name(tabledef: &str) -> Vec<String> {
+        let values_str = tabledef.split('(').collect::<Vec<_>>()[1];
+        values_str
+            .split(',')
+            .map(|value| Self::trim_column_def(value.trim()))
+            .collect::<Vec<_>>()
+    }
+
+    fn trim_column_def(value: &str) -> String {
+        if value.contains(' ') {
+            value.split(' ').next().unwrap().trim().to_string()
+        } else {
+            value.trim().to_string()
+        }
+    }
+
+    fn get_root_page(record: FieldType) -> usize {
+        match record {
+            FieldType::TNull => panic!("Table parsing: this type cannot be used for root_page"),
+            FieldType::TI8(num) => num as usize,
+            FieldType::TI16(num) => num as usize,
+            FieldType::TI32(num) => num as usize,
+            FieldType::TI48(num) => num as usize,
+            FieldType::TI64(num) => num as usize,
+            FieldType::TF64(num) => num as usize,
+            FieldType::T0 => 0,
+            FieldType::T1 => 1,
+            FieldType::TVar => panic!("Table parsing: this type cannot be used for root_page"),
+            FieldType::TBlob(_) => panic!("Table parsing: this type cannot be used for root_page"),
+            FieldType::TStr(_) => panic!("Table parsing: this type cannot be used for root_page"),
+        }
     }
 
     pub fn print_metadata(&self) {
@@ -47,8 +96,8 @@ impl DBMetadata {
     // Print tablenames in alphabetical order
     pub fn print_table_names(&self) {
         let mut tablenames = Vec::new();
-        for table in self.schema.values() {
-            tablenames.push(&table.tablename)
+        for (tablename, _) in self.schema.iter() {
+            tablenames.push(tablename.to_string())
         }
         tablenames.sort();
         for (i, tablename) in tablenames.iter().enumerate() {
