@@ -6,13 +6,13 @@ use std::fmt;
 
 #[derive(Debug)]
 pub struct SelectStatement {
-    select_clause: Select,
+    select_clause: SelectClause,
     from_clause: String,
     where_clause: String,
 }
 
 impl SelectStatement {
-    pub fn new(select_clause: Select, from_clause: String, where_clause: String) -> Self {
+    pub fn new(select_clause: SelectClause, from_clause: String, where_clause: String) -> Self {
         Self {
             select_clause,
             from_clause,
@@ -23,30 +23,38 @@ impl SelectStatement {
 
 impl fmt::Display for SelectStatement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{} {} {}",
-            self.select_clause, self.from_clause, self.where_clause
-        )
+        write!(f, "{}", self.select_clause)?;
+        if self.from_clause.len() > 0 {
+            write!(f, " {}", self.from_clause)?;
+        }
+
+        if self.where_clause.len() > 0 {
+            write!(f, " {}", self.where_clause)?;
+        }
+        Ok(())
     }
 }
 
 #[derive(Debug)]
-pub struct Select {
+pub struct SelectClause {
     token: Token,
     values: Vec<SelectItem>,
 }
 
-impl Select {
+impl SelectClause {
     pub fn new(token: Token) -> Self {
         Self {
             token: token,
             values: vec![],
         }
     }
+
+    pub fn push_value(&mut self, value: SelectItem) {
+        self.values.push(value);
+    }
 }
 
-impl fmt::Display for Select {
+impl fmt::Display for SelectClause {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let identifiers = self.values.iter().join(", ");
         write!(f, "{} {}", self.token, identifiers)

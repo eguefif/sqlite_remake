@@ -1,15 +1,17 @@
-use crate::db::parser::tokenizer::Token;
 use std::fmt;
 
 #[derive(Debug)]
 pub struct Identifier {
-    token: Token,
-    value: VType,
+    pub value: VType,
 }
 
 impl fmt::Display for Identifier {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.token)
+        match self.value {
+            VType::Num(num) => write!(f, "{}", num),
+            VType::Str(ref value) => write!(f, "{}", value),
+            VType::Null => write!(f, "NULL"),
+        }
     }
 }
 

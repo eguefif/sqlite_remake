@@ -12,7 +12,8 @@
 //!    }
 //! ```
 use crate::db::parser::{
-    select::{Select, SelectStatement},
+    identifier::{Identifier, VType},
+    select::{SelectClause, SelectItem, SelectStatement},
     statement::Statement,
     tokenizer::{Token, Tokenizer},
 };
@@ -72,13 +73,37 @@ impl<'a> Parser<'a> {
         Err(anyhow!("Expected token {} but got EOF", expected_token))
     }
 
-    fn parse_select(&mut self, token: Token) -> Result<Statement> {
-        let mut select = Select::new(token);
-
-        let select_statement = SelectStatement::new(select, "".to_string(), "".to_string());
-        // TODO: impl a function that get value or function
+    fn parse_select_statement(&mut self, token: Token) -> Result<Statement> {
+        let select_clause = self.parse_select_clause(token)?;
+        let select_statement = SelectStatement::new(select_clause, "".to_string(), "".to_string());
 
         Ok(Statement::Select(select_statement))
+    }
+
+    fn parse_select_clause(&mut self, token: Token) -> Result<SelectClause> {
+        let mut select = SelectClause::new(token);
+        loop {
+            let Some(next) = self.tokenizer.next() else {
+                return Err(anyhow!("Parsing Select Clause: expect token got EOF"));
+            };
+            let Token::Ident(col_name) = next else {
+                return Err(anyhow!(
+                    "Parsing Select Clause: expect column name got {}",
+                    next
+                ));
+            };
+            let identifier = Identifier {
+                value: VType::Str(col_name),
+            };
+            select.push_value(SelectItem::Identifier(identifier));
+
+            if let Err(_) = self.expect_token_peek(Token::Coma) {
+                break;
+            }
+            self.tokenizer.next();
+        }
+
+        Ok(select)
     }
 }
 
@@ -91,7 +116,7 @@ impl Iterator for Parser<'_> {
             return None;
         };
         let stmt = match token {
-            Token::Select => self.parse_select(token),
+            Token::Select => self.parse_select_statement(token),
             _ => todo!("Do update and insert ..."),
         };
 
@@ -102,6 +127,16 @@ impl Iterator for Parser<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn it_should_parse_select_regular_cols_name() {
+        let query = "SELECT name, color, age";
+        let mut parser = Parser::new("SELECT name, color, age");
+
+        let parsed_query = parser.next().unwrap().unwrap();
+        let result = format!("{}", parsed_query);
+        assert_eq!(query, result)
+    }
 
     #[test]
     fn it_should_parse_select_with_count() {

@@ -56,6 +56,7 @@ impl DB {
         Ok(u16::from_be_bytes([header[16], header[17]]))
     }
 
+    #[allow(dead_code)]
     fn get_page(&mut self, root_page: usize) -> Result<Page> {
         let mut buffer = Vec::new();
         buffer.resize(self.page_size, 0);
