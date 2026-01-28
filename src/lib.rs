@@ -1,5 +1,9 @@
 //! This crate provide a SQlite engine to read and work with SQlite database files.
 //!
+//! This is a work in progress and a learning project.
+//!
+//! TODO: redo this doc, there are three components: db executor and parser
+//!
 //! The main component is [db] module that allows to run dot command or execute sql queries.
 //!
 //! The [db] module contains:
@@ -15,10 +19,10 @@
 //! - [record](db::fileformat::record) module that contains types to represent database records.
 //! - [types](db::fileformat::types) module that contains types to represent low level types used
 //!
-//!The [parser](db::parser) module contains:
-//! - [parser](db::parser) module that contains the main parser to parse queries.
-//! - [query](db::parser::query) module that contains types to represent parsed queries.
-//! - [tokenizer](db::parser::tokenizer) module that contains the tokenizer to parse queries.
+//!The [parser](parser) module contains:
+//! - [parser](parser) module that contains the main parser to parse queries.
+//! - [statement](parser::statement) module that contains types to represent parsed queries.
+//! - [tokenizer](parser::tokenizer) module that contains the tokenizer to parse queries.
 //!
 //! # Example
 //! ```
@@ -33,9 +37,10 @@
 //! For dot commands, the Option will be None.
 //! For sql queries, the Option will be Some with a vector of (Query, Response) tuples.
 //!
-//! A [Query](db::parser::query::Query) represents the parsed query.
+//! A [Statement](parser::statement::Statement) represents the parsed query.
 //! A [Response](db::db_response::Response) represents the result of executing the query which is a
 //! vector of rows. Each rows is a vector of [RType](db::db_response::RType).
 
 pub mod db;
 pub mod executor;
+pub mod parser;

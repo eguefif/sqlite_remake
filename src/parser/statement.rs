@@ -9,7 +9,7 @@
 //! * From
 //! * Where
 //!
-use crate::db::parser::select::SelectStatement;
+use crate::parser::select::SelectStatement;
 use std::fmt;
 
 #[derive(Debug)]

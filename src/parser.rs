@@ -11,7 +11,7 @@
 //!    println!("{}", query);
 //!    }
 //! ```
-use crate::db::parser::{
+use crate::parser::{
     function::FuncCall,
     identifier::{Identifier, VType},
     select::{SelectClause, SelectItem, SelectStatement},

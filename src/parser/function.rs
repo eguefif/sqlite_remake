@@ -1,4 +1,4 @@
-use crate::db::parser::select::SelectItem;
+use crate::parser::select::SelectItem;
 use itertools::Itertools;
 use std::fmt;
 

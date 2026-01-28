@@ -1,12 +1,5 @@
 //! A simple database engine that can read a database file, parse queries, and return results. It contains struct to represent the database, its metadata, and responses.
 //!
-//! # Example
-//! ```
-//! use crate::db::DB;
-//! let mut db = DB::new("test.db").unwrap();
-//! let response = db.execute("SELECT name FROM users;").unwrap();
-//! ```
-//!
 use crate::db::dbmetadata::DBMetadata;
 use crate::db::fileformat::page::Page;
 use anyhow::Result;
@@ -14,10 +7,8 @@ use std::fs::File;
 use std::io::BufReader;
 use std::io::{Read, Seek, SeekFrom};
 
-pub mod db_response;
 pub mod dbmetadata;
 pub mod fileformat;
-pub mod parser;
 pub mod table;
 
 pub struct DB {

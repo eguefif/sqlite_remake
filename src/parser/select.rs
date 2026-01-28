@@ -1,6 +1,6 @@
-use crate::db::parser::function::FuncCall;
-use crate::db::parser::identifier::Identifier;
-use crate::db::parser::tokenizer::Token;
+use crate::parser::function::FuncCall;
+use crate::parser::identifier::Identifier;
+use crate::parser::tokenizer::Token;
 use itertools::Itertools;
 use std::fmt;
 

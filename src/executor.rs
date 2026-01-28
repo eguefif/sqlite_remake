@@ -1,8 +1,10 @@
+//! TODO: Add documentation
 use crate::db::DB;
-use crate::db::db_response::Response;
-use crate::db::parser::Parser;
-use crate::db::parser::statement::Statement;
+use crate::executor::db_response::Response;
+use crate::parser::{Parser, statement::Statement};
 use anyhow::Result;
+
+pub mod db_response;
 
 pub struct Executor {
     db: DB,
@@ -16,7 +18,7 @@ impl Executor {
     /// Execute a command, which can be either a special command (like .dbinfo or .tables)
     /// or a SQL query.
     /// Returns None for special commands, or Some(Vec<(Query, Response)) for SQL queries.
-    /// A Response is a vector of rows, where each row is a vector of [RType values][RType].
+    /// See ([Response][executor::db_response::Response])
     pub fn execute(&mut self, command: &str) -> Result<Option<Vec<(Statement, Response)>>> {
         match command {
             ".dbinfo" => self.db.metadata.print_metadata(),
