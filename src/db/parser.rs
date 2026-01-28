@@ -12,6 +12,7 @@
 //!    }
 //! ```
 use crate::db::parser::{
+    function::FuncCall,
     identifier::{Identifier, VType},
     select::{SelectClause, SelectItem, SelectStatement},
     statement::Statement,
@@ -82,28 +83,62 @@ impl<'a> Parser<'a> {
 
     fn parse_select_clause(&mut self, token: Token) -> Result<SelectClause> {
         let mut select = SelectClause::new(token);
+
+        let select_items = self.parse_select_values()?;
+        for item in select_items {
+            select.push_item(item);
+        }
+
+        Ok(select)
+    }
+
+    fn parse_select_values(&mut self) -> Result<Vec<SelectItem>> {
+        let mut select_items = vec![];
         loop {
             let Some(next) = self.tokenizer.next() else {
                 return Err(anyhow!("Parsing Select Clause: expect token got EOF"));
             };
-            let Token::Ident(col_name) = next else {
-                return Err(anyhow!(
-                    "Parsing Select Clause: expect column name got {}",
-                    next
-                ));
-            };
-            let identifier = Identifier {
-                value: VType::Str(col_name),
-            };
-            select.push_value(SelectItem::Identifier(identifier));
+            match next {
+                Token::Ident(value) => {
+                    if self.is_function(&value) {
+                        let function = self.parse_function(value)?;
+                        select_items.push(function);
+                    } else {
+                        let identifier = Identifier {
+                            value: VType::Str(value),
+                        };
+                        select_items.push(SelectItem::Identifier(identifier));
+                    }
+                }
+                Token::Star => select_items.push(SelectItem::Star),
+                _ => {
+                    return Err(anyhow!(
+                        "Parsing Select Clause: expect column name got {}",
+                        next
+                    ));
+                }
+            }
 
             if let Err(_) = self.expect_token_peek(Token::Coma) {
                 break;
             }
             self.tokenizer.next();
         }
+        Ok(select_items)
+    }
 
-        Ok(select)
+    fn is_function(&self, function_name: &str) -> bool {
+        match function_name {
+            "count" => true,
+            _ => false,
+        }
+    }
+
+    fn parse_function(&mut self, function_name: String) -> Result<SelectItem> {
+        self.expect_token(Token::LParen)?;
+        let items = self.parse_select_values()?;
+        self.expect_token(Token::RParen)?;
+        Ok(SelectItem::Function(FuncCall::new(function_name, items)))
     }
 }
 

@@ -38,25 +38,25 @@ impl fmt::Display for SelectStatement {
 #[derive(Debug)]
 pub struct SelectClause {
     token: Token,
-    values: Vec<SelectItem>,
+    items: Vec<SelectItem>,
 }
 
 impl SelectClause {
     pub fn new(token: Token) -> Self {
         Self {
             token: token,
-            values: vec![],
+            items: vec![],
         }
     }
 
-    pub fn push_value(&mut self, value: SelectItem) {
-        self.values.push(value);
+    pub fn push_item(&mut self, item: SelectItem) {
+        self.items.push(item);
     }
 }
 
 impl fmt::Display for SelectClause {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let identifiers = self.values.iter().join(", ");
+        let identifiers = self.items.iter().join(", ");
         write!(f, "{} {}", self.token, identifiers)
     }
 }
@@ -65,6 +65,7 @@ impl fmt::Display for SelectClause {
 pub enum SelectItem {
     Function(FuncCall),
     Identifier(Identifier),
+    Star,
 }
 
 impl fmt::Display for SelectItem {
@@ -72,6 +73,7 @@ impl fmt::Display for SelectItem {
         match self {
             SelectItem::Function(func) => write!(f, "{}", func),
             SelectItem::Identifier(ident) => write!(f, "{}", ident),
+            SelectItem::Star => write!(f, "*"),
         }
     }
 }
