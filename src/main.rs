@@ -1,5 +1,8 @@
 use anyhow::{Result, bail};
-use codecrafters_sqlite::db::{DB, db_response::Response, parser::statement::Statement};
+use codecrafters_sqlite::{
+    db::{DB, db_response::Response, parser::statement::Statement},
+    executor::Executor,
+};
 
 fn main() -> Result<()> {
     // Parse arguments
@@ -12,8 +15,9 @@ fn main() -> Result<()> {
 
     // Parse command and act accordingly
     let command = &args[2];
-    let mut db = DB::new(&args[1])?;
-    if let Some(response) = db.execute(command)? {
+    let db = DB::new(&args[1])?;
+    let mut executor = Executor::new(db);
+    if let Some(response) = executor.execute(command)? {
         display_response(&response);
     }
 

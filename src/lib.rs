@@ -38,3 +38,4 @@
 //! vector of rows. Each rows is a vector of [RType](db::db_response::RType).
 
 pub mod db;
+pub mod executor;
