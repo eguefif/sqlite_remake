@@ -10,9 +10,10 @@ use byteorder::{BigEndian, ReadBytesExt};
 use std::io::{Cursor, Read};
 
 #[allow(unused)]
+#[derive(Debug)]
 pub struct Record {
     cell_size: usize,
-    rowid: usize,
+    pub rowid: usize,
     header: RecordHeader,
     record_start: usize, // When actual record start, after cell header + record header + rowid
     fields: Vec<RType>,
@@ -137,6 +138,8 @@ impl ColSerialType {
         }
     }
 
+    /// Return the size in bytes
+    /// Typically used for parsing the record in a page Cell
     pub fn size(&self) -> usize {
         match *self {
             ColSerialType::Null => 0,
@@ -164,40 +167,23 @@ pub struct RecordHeader {
 
 impl RecordHeader {
     pub fn new(buffer: &[u8]) -> Self {
-        let size = Varint::new(buffer);
+        let cell_header_size = Varint::new(buffer);
         let mut col_serial_types = vec![];
-        let mut offset = size.size;
+        // We start parsing header columns value type after
+        // the cell size memory value.
+        let mut offset = cell_header_size.size;
         loop {
             let col_type = Varint::new(&buffer[offset..]);
 
-            offset += col_type.size;
             col_serial_types.push(ColSerialType::new(col_type.varint as usize));
-            if offset == size.varint as usize {
+            offset += col_type.size;
+            if offset == cell_header_size.varint as usize {
                 break;
             }
         }
         Self {
-            size: size.varint as usize,
+            size: cell_header_size.varint as usize,
             col_serial_types,
         }
     }
 }
-
-// FieldType represernts the type and store the value of the column
-#[derive(Debug, Clone)]
-pub enum FieldType {
-    TNull,
-    TI8(i8),
-    TI16(i16),
-    TI32(i32),
-    TI48(i64),
-    TI64(i64),
-    TF64(f64),
-    T0,
-    T1,
-    TVar,
-    TBlob(Vec<u8>),
-    TStr(String),
-}
-
-impl FieldType {}

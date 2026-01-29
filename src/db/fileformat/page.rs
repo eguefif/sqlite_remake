@@ -107,7 +107,7 @@ impl Page {
         let cell_array = self.get_cell_pointer_array();
         let mut cursor = Cursor::new(cell_array);
 
-        for _ in cell_array {
+        for _ in 0..self.get_record_number() {
             let offset = cursor.read_u16::<BigEndian>()? as usize;
             let record = Record::new(&self.get_slice(offset, None))?;
             rows.push(record);

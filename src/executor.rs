@@ -1,6 +1,6 @@
 //! TODO: Add documentation
 use crate::db::DB;
-use crate::executor::db_response::Response;
+use crate::executor::db_response::{RType, Response};
 use crate::parser::{Parser, select::SelectStatement, statement::Statement};
 use anyhow::Result;
 
@@ -61,7 +61,9 @@ impl Executor {
 
         let rows = page.get_all_rows()?;
         for mut row in rows {
-            response.push(row.take_fields());
+            let mut response_row = row.take_fields();
+            response_row[0] = RType::Num(row.rowid as i64);
+            response.push(response_row);
         }
         Ok(Some(response))
     }
