@@ -20,21 +20,21 @@ impl DBMetadata {
         let mut schema: SchemaTable = HashMap::new();
         for n in 0..page.get_record_number() {
             let mut record = page.get_nth_record(n);
-            let RType::Str(table_type) = record.get_col(0) else {
+            let RType::Str(table_type) = record.take_field() else {
                 panic!("Wrong type table type schema")
             };
-            let RType::Str(name) = record.get_col(1) else {
+            let RType::Str(name) = record.take_field() else {
                 panic!("Wrong type name schema")
             };
-            let RType::Str(tablename) = record.get_col(2) else {
+            let RType::Str(tablename) = record.take_field() else {
                 panic!("Wrong type tablename schema")
             };
-            let RType::Str(tabledef) = record.get_col(4) else {
+            let rootpage = Self::get_root_page(record.take_field());
+            let RType::Str(tabledef) = record.take_field() else {
                 panic!("Wrong type tabledef")
             };
 
             let cols_name = Self::get_cols_name(&tabledef);
-            let rootpage = Self::get_root_page(record.get_col(3));
 
             let table = Table::new(table_type, name, rootpage, tabledef, cols_name);
             schema.insert(tablename.to_string(), table);

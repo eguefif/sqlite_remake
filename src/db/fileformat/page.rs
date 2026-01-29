@@ -17,7 +17,6 @@
 //! [Sqlite fileformat documentation](https://www.sqlite.org/fileformat.html)
 use crate::db::fileformat::record::Record;
 use anyhow::Result;
-use bytemuck::cast_slice;
 use byteorder::{BigEndian, ReadBytesExt};
 use std::io::Cursor;
 
@@ -82,13 +81,13 @@ impl Page {
 
     /// cell_pointer_array are pointers to page cells
     /// cells are records
-    pub fn get_cell_pointer_array(&self) -> &[u16] {
+    pub fn get_cell_pointer_array(&self) -> &[u8] {
         let buffer = self.get_page_buffer();
         let cell_number = self.page_header.cell_number;
         if self.page_header.btree_type == BTreeType::InteriorPage {
-            return cast_slice(&buffer[12..12 + cell_number as usize * 2]);
+            return &buffer[12..12 + cell_number as usize * 2];
         } else {
-            return cast_slice(&buffer[8..8 + cell_number as usize * 2]);
+            return &buffer[8..8 + cell_number as usize * 2];
         }
     }
 
@@ -106,9 +105,11 @@ impl Page {
     pub fn get_all_rows(&self) -> Result<Vec<Record>> {
         let mut rows = vec![];
         let cell_array = self.get_cell_pointer_array();
+        let mut cursor = Cursor::new(cell_array);
 
-        for cell_index in cell_array {
-            let record = Record::new(&self.get_slice(*cell_index as usize, None))?;
+        for _ in cell_array {
+            let offset = cursor.read_u16::<BigEndian>()? as usize;
+            let record = Record::new(&self.get_slice(offset, None))?;
             rows.push(record);
         }
 
@@ -116,23 +117,14 @@ impl Page {
     }
 
     /// This function is used to iterate over records in a page
-    /// # Example
-    /// ```no_run
-    /// let page: Page = Page::new(buffer, page_number).unwrap();
-    /// for i in 0..page.get_record_number() {
-    ///    let record = page.get_nth_record(i);
-    ///    // do something with the record
-    /// }
     pub fn get_nth_record(&self, index: usize) -> Record {
+        let cell_array_offset = index * 2;
         let cell_array = self.get_cell_pointer_array();
-        if cell_array.len() > index {
-            let cell_start = cell_array[index];
-            Record::new(&self.get_slice(cell_start as usize, None))
-                .expect("Error: indexing record, file parsing failed")
-        } else {
-            // TODO: hadle error
-            panic!("Page: record retrieval failed, index is out of range")
-        }
+        let mut cursor = Cursor::new(&cell_array[cell_array_offset..]);
+        let offset = cursor.read_u16::<BigEndian>().unwrap() as usize;
+        let record = Record::new(&self.get_slice(offset as usize, None))
+            .expect("Error: indexing record, file parsing failed");
+        record
     }
 }
 

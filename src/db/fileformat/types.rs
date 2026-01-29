@@ -1,6 +1,8 @@
 /// A structure representing a variable-length integer (varint) as used in certain binary formats.
 /// See 1.6. B-tree Pages in [varint doc](https://www.sqlite.org/fileformat.html)
 /// There is a paragraph that starts with variable-length integer after the table.
+use std::fmt;
+
 #[derive(Debug)]
 pub struct Varint {
     pub varint: i64, // value of the varint
@@ -24,6 +26,12 @@ impl Varint {
             }
         }
         Self { varint, size }
+    }
+}
+
+impl fmt::Display for Varint {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Varint: {}, size: {}", self.varint, self.size)
     }
 }
 

@@ -60,10 +60,8 @@ impl Executor {
         };
 
         let rows = page.get_all_rows()?;
-        for row in rows {
-            // TODO: refactor record to contains directly the final type we have in RType
-            // the FieldType should just be temporary. We can remove it. We need to store from
-            // the beginning what we will provides.
+        for mut row in rows {
+            response.push(row.take_fields());
         }
         Ok(Some(response))
     }

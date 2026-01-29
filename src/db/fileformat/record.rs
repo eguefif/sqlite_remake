@@ -44,10 +44,16 @@ impl Record {
             fields,
         })
     }
+    pub fn take_fields(&mut self) -> Vec<RType> {
+        std::mem::take(&mut self.fields)
+    }
 
     /// Move out a value from the record
-    pub fn get_col(&mut self, index: usize) -> RType {
-        self.fields.swap_remove(index)
+    pub fn take_field(&mut self) -> RType {
+        if self.fields.len() > 0 {
+            return self.fields.remove(0);
+        }
+        panic!("Record: cannot take field anymore, fields.len() == 0",);
     }
 
     pub fn from_col_serial_type(
