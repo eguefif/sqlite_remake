@@ -54,7 +54,7 @@ impl Executor {
     }
 
     fn execute_select(&mut self, query: &SelectStatement) -> Result<Option<Response>> {
-        let mut response = vec![]
+        let mut response = vec![];
         let Some(page) = self.db.get_table_page(&query.from_clause)? else {
             return Ok(None);
         };

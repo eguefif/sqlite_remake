@@ -4,6 +4,7 @@
 // TODO: the mapping with RTYpe should be in RType, record should not know a thing about
 // the outside world
 use crate::db::fileformat::types::Varint;
+use crate::executor::db_response::RType;
 use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
 use std::io::{Cursor, Read};
@@ -14,7 +15,7 @@ pub struct Record {
     rowid: usize,
     header: RecordHeader,
     record_start: usize, // When actual record start, after cell header + record header + rowid
-    fields: Vec<FieldType>,
+    fields: Vec<RType>,
 }
 
 impl Record {
@@ -26,11 +27,13 @@ impl Record {
         // Parsing record header
         let buffer_start = cell_size.size + rowid.size;
         let header = RecordHeader::new(&buffer[buffer_start..]);
+
+        // Parsing record
         let record_start = cell_size.size + rowid.size + header.size;
-        let mut fields: Vec<FieldType> = vec![];
+        let mut fields: Vec<RType> = vec![];
         let mut cursor = Cursor::new(&buffer[record_start..]);
         for col_serial_type in header.col_serial_types.iter() {
-            let field = FieldType::from_col_serial_type(&col_serial_type, &mut cursor);
+            let field = Self::from_col_serial_type(&col_serial_type, &mut cursor);
             fields.push(field?);
         }
         Ok(Self {
@@ -43,8 +46,43 @@ impl Record {
     }
 
     /// Move out a value from the record
-    pub fn get_col(&mut self, index: usize) -> FieldType {
+    pub fn get_col(&mut self, index: usize) -> RType {
         self.fields.swap_remove(index)
+    }
+
+    pub fn from_col_serial_type(
+        serial_type: &ColSerialType,
+        cursor: &mut Cursor<&[u8]>,
+    ) -> Result<RType> {
+        let col = match serial_type {
+            ColSerialType::Null => RType::Null,
+            ColSerialType::Vu8 => RType::Num(cursor.read_i8()? as i64),
+            ColSerialType::Vu16 => RType::Num(cursor.read_i16::<BigEndian>()? as i64),
+            ColSerialType::Vu32 => RType::Num(cursor.read_i32::<BigEndian>()? as i64),
+            ColSerialType::Vu48 => RType::Num(Self::get_i48(cursor)?),
+            ColSerialType::Vu64 => RType::Num(cursor.read_i64::<BigEndian>()? as i64),
+            ColSerialType::Vf64 => RType::Num(cursor.read_f64::<BigEndian>()? as i64),
+            ColSerialType::V0 => RType::Num(0),
+            ColSerialType::V1 => RType::Num(1),
+            ColSerialType::Variable => todo!("TODO: ColSeriableType variable"),
+            ColSerialType::Blob(size) => {
+                let mut blob = Vec::new();
+                blob.resize(*size, 0);
+                cursor.read_exact(&mut blob)?;
+                RType::Blob(blob)
+            }
+            ColSerialType::Str(size) => {
+                let mut buffer = Vec::new();
+                buffer.resize(*size, 0);
+                cursor.read_exact(&mut buffer)?;
+                RType::Str(String::from_utf8(buffer)?)
+            }
+        };
+        Ok(col)
+    }
+
+    pub fn get_i48(_cursor: &mut Cursor<&[u8]>) -> Result<i64> {
+        todo!("Handle i48 field type in record")
     }
 }
 
@@ -156,39 +194,4 @@ pub enum FieldType {
     TStr(String),
 }
 
-impl FieldType {
-    pub fn from_col_serial_type(
-        serial_type: &ColSerialType,
-        cursor: &mut Cursor<&[u8]>,
-    ) -> Result<FieldType> {
-        let col = match serial_type {
-            ColSerialType::Null => FieldType::TNull,
-            ColSerialType::Vu8 => FieldType::TI8(cursor.read_i8()?),
-            ColSerialType::Vu16 => FieldType::TI16(cursor.read_i16::<BigEndian>()?),
-            ColSerialType::Vu32 => FieldType::TI32(cursor.read_i32::<BigEndian>()?),
-            ColSerialType::Vu48 => FieldType::TI48(FieldType::get_i48(cursor)?),
-            ColSerialType::Vu64 => FieldType::TI64(cursor.read_i64::<BigEndian>()?),
-            ColSerialType::Vf64 => FieldType::TF64(cursor.read_f64::<BigEndian>()?),
-            ColSerialType::V0 => FieldType::T0,
-            ColSerialType::V1 => FieldType::T1,
-            ColSerialType::Variable => FieldType::TVar,
-            ColSerialType::Blob(size) => {
-                let mut blob = Vec::new();
-                blob.resize(*size, 0);
-                cursor.read_exact(&mut blob)?;
-                FieldType::TBlob(blob)
-            }
-            ColSerialType::Str(size) => {
-                let mut buffer = Vec::new();
-                buffer.resize(*size, 0);
-                cursor.read_exact(&mut buffer)?;
-                FieldType::TStr(String::from_utf8(buffer)?)
-            }
-        };
-        Ok(col)
-    }
-
-    pub fn get_i48(_cursor: &mut Cursor<&[u8]>) -> Result<i64> {
-        todo!("Handle i48 field type in record")
-    }
-}
+impl FieldType {}

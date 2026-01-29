@@ -1,8 +1,8 @@
 //! This module offer an abstraction over the sqlite database metadata
 //!
-use crate::db::fileformat::{page::Page, record::FieldType};
+use crate::db::fileformat::page::Page;
 use crate::db::table::{SchemaTable, Table};
-use anyhow::Result;
+use crate::executor::db_response::RType;
 use std::collections::HashMap;
 
 pub struct DBMetadata {
@@ -20,16 +20,16 @@ impl DBMetadata {
         let mut schema: SchemaTable = HashMap::new();
         for n in 0..page.get_record_number() {
             let mut record = page.get_nth_record(n);
-            let FieldType::TStr(table_type) = record.get_col(0) else {
+            let RType::Str(table_type) = record.get_col(0) else {
                 panic!("Wrong type table type schema")
             };
-            let FieldType::TStr(name) = record.get_col(1) else {
+            let RType::Str(name) = record.get_col(1) else {
                 panic!("Wrong type name schema")
             };
-            let FieldType::TStr(tablename) = record.get_col(2) else {
+            let RType::Str(tablename) = record.get_col(2) else {
                 panic!("Wrong type tablename schema")
             };
-            let FieldType::TStr(tabledef) = record.get_col(4) else {
+            let RType::Str(tabledef) = record.get_col(4) else {
                 panic!("Wrong type tabledef")
             };
 
@@ -58,20 +58,12 @@ impl DBMetadata {
         }
     }
 
-    fn get_root_page(record: FieldType) -> usize {
+    fn get_root_page(record: RType) -> usize {
         match record {
-            FieldType::TNull => panic!("Table parsing: this type cannot be used for root_page"),
-            FieldType::TI8(num) => num as usize,
-            FieldType::TI16(num) => num as usize,
-            FieldType::TI32(num) => num as usize,
-            FieldType::TI48(num) => num as usize,
-            FieldType::TI64(num) => num as usize,
-            FieldType::TF64(num) => num as usize,
-            FieldType::T0 => 0,
-            FieldType::T1 => 1,
-            FieldType::TVar => panic!("Table parsing: this type cannot be used for root_page"),
-            FieldType::TBlob(_) => panic!("Table parsing: this type cannot be used for root_page"),
-            FieldType::TStr(_) => panic!("Table parsing: this type cannot be used for root_page"),
+            RType::Null => panic!("Table parsing: this type cannot be used for root_page"),
+            RType::Num(num) => num as usize,
+            RType::Blob(_) => panic!("Table parsing: this type cannot be used for root_page"),
+            RType::Str(_) => panic!("Table parsing: this type cannot be used for root_page"),
         }
     }
 

@@ -19,8 +19,6 @@
 //! }
 //! ```
 //!
-use crate::db::fileformat::record::FieldType;
-use std::convert::From;
 use std::fmt::{Display, Formatter, Result};
 
 pub enum RType {
@@ -28,25 +26,6 @@ pub enum RType {
     Blob(Vec<u8>),
     Str(String),
     Null,
-}
-
-impl From<FieldType> for RType {
-    fn from(item: FieldType) -> RType {
-        match item {
-            FieldType::TNull => RType::Null,
-            FieldType::TI8(value) => RType::Num(value as i64),
-            FieldType::TI16(value) => RType::Num(value as i64),
-            FieldType::TI32(value) => RType::Num(value as i64),
-            FieldType::TI48(value) => RType::Num(value as i64),
-            FieldType::TI64(value) => RType::Num(value as i64),
-            FieldType::TF64(value) => RType::Num(value as i64),
-            FieldType::T0 => RType::Num(0),
-            FieldType::T1 => RType::Num(1),
-            FieldType::TVar => panic!("Variable type field in record while getting response"),
-            FieldType::TBlob(blob) => RType::Blob(blob),
-            FieldType::TStr(string) => RType::Str(string.clone()),
-        }
-    }
 }
 
 impl Display for RType {
