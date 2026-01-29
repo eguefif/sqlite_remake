@@ -1,7 +1,7 @@
 //! TODO: Add documentation
 use crate::db::DB;
 use crate::executor::db_response::Response;
-use crate::parser::{Parser, statement::Statement};
+use crate::parser::{Parser, select::SelectStatement, statement::Statement};
 use anyhow::Result;
 
 pub mod db_response;
@@ -31,21 +31,40 @@ impl Executor {
         Ok(None)
     }
 
-    fn execute_queries(&self, queries: &str) -> Result<Option<Vec<(Statement, Response)>>> {
+    fn execute_queries(&mut self, queries: &str) -> Result<Option<Vec<(Statement, Response)>>> {
         let parser = Parser::new(queries);
         let mut results: Vec<(Statement, Response)> = vec![];
         for query in parser {
             let statement = query?;
             let result = self.execute_query(&statement)?;
-            results.push((statement, result));
+            if let Some(result) = result {
+                results.push((statement, result));
+            } else {
+                return Ok(None);
+            }
         }
 
         Ok(Some(results))
     }
 
-    fn execute_query(&self, query: &Statement) -> Result<Response> {
-        let response = vec![];
+    fn execute_query(&mut self, query: &Statement) -> Result<Option<Response>> {
+        match query {
+            Statement::Select(select_statement) => self.execute_select(select_statement),
+        }
+    }
 
-        Ok(response)
+    fn execute_select(&mut self, query: &SelectStatement) -> Result<Option<Response>> {
+        let mut response = vec![]
+        let Some(page) = self.db.get_table_page(&query.from_clause)? else {
+            return Ok(None);
+        };
+
+        let rows = page.get_all_rows()?;
+        for row in rows {
+            // TODO: refactor record to contains directly the final type we have in RType
+            // the FieldType should just be temporary. We can remove it. We need to store from
+            // the beginning what we will provides.
+        }
+        Ok(Some(response))
     }
 }

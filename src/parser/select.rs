@@ -6,9 +6,9 @@ use std::fmt;
 
 #[derive(Debug)]
 pub struct SelectStatement {
-    select_clause: SelectClause,
-    from_clause: String,
-    where_clause: String,
+    pub select_clause: SelectClause,
+    pub from_clause: String,
+    pub where_clause: String,
 }
 
 impl SelectStatement {

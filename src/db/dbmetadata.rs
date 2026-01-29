@@ -2,6 +2,7 @@
 //!
 use crate::db::fileformat::{page::Page, record::FieldType};
 use crate::db::table::{SchemaTable, Table};
+use anyhow::Result;
 use std::collections::HashMap;
 
 pub struct DBMetadata {
@@ -72,6 +73,11 @@ impl DBMetadata {
             FieldType::TBlob(_) => panic!("Table parsing: this type cannot be used for root_page"),
             FieldType::TStr(_) => panic!("Table parsing: this type cannot be used for root_page"),
         }
+    }
+
+    pub fn get_table_root_page(&self, tablename: &str) -> Option<usize> {
+        let table = self.schema.get(tablename)?;
+        Some(table.root_page)
     }
 
     pub fn print_metadata(&self) {

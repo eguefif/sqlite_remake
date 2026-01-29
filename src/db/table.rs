@@ -28,7 +28,7 @@ pub enum ColType {}
 pub struct Table {
     table_type: TableType,
     name: String,
-    pub rootpage: usize,
+    pub root_page: usize,
     tabledef: String,
     cols_name: Vec<String>,
 }
@@ -44,7 +44,7 @@ impl Table {
         Self {
             table_type: TableType::from_str(&table_type),
             name: name,
-            rootpage: rootpage,
+            root_page: rootpage,
             tabledef: tabledef,
             cols_name,
         }

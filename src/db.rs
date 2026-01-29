@@ -49,6 +49,14 @@ impl DB {
         Ok(u16::from_be_bytes([header[16], header[17]]))
     }
 
+    pub fn get_table_page(&mut self, tablename: &str) -> Result<Option<Page>> {
+        let Some(table_root_page) = self.metadata.get_table_root_page(tablename) else {
+            return Ok(None);
+        };
+        let page = self.get_page(table_root_page)?;
+        Ok(Some(page))
+    }
+
     #[allow(dead_code)]
     fn get_page(&mut self, root_page: usize) -> Result<Page> {
         let mut page_buffer = self.get_new_page_buffer();
