@@ -1,6 +1,7 @@
 use crate::parser::function::FuncCall;
 use crate::parser::identifier::Identifier;
 use crate::parser::tokenizer::Token;
+use anyhow::{Result, anyhow};
 use itertools::Itertools;
 use std::fmt;
 
@@ -42,7 +43,7 @@ impl fmt::Display for SelectStatement {
 #[derive(Debug)]
 pub struct SelectClause {
     token: Token,
-    items: Vec<SelectItem>,
+    pub items: Vec<SelectItem>,
 }
 
 impl SelectClause {
@@ -55,6 +56,21 @@ impl SelectClause {
 
     pub fn push_item(&mut self, item: SelectItem) {
         self.items.push(item);
+    }
+
+    pub fn check_select_clause(self) -> Result<()> {
+        if self.items.len() > 1 {
+            match self.items[0] {
+                SelectItem::Function(_) => {
+                    return Err(anyhow!("Executor: select clause mixes function and values"));
+                }
+                SelectItem::Star => {
+                    return Err(anyhow!("Executor: select clause has * and other values"));
+                }
+                _ => {}
+            }
+        }
+        Ok(())
     }
 }
 

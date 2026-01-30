@@ -1,6 +1,8 @@
 //! TODO: Add documentation
 use crate::db::DB;
 use crate::executor::db_response::{RType, Response};
+use crate::parser::identifier::{Identifier, VType};
+use crate::parser::select::SelectItem;
 use crate::parser::{Parser, select::SelectStatement, statement::Statement};
 use anyhow::Result;
 
@@ -49,22 +51,49 @@ impl Executor {
 
     fn execute_query(&mut self, query: &Statement) -> Result<Option<Response>> {
         match query {
-            Statement::Select(select_statement) => self.execute_select(select_statement),
+            Statement::Select(select_statement) => self.execute_select_statement(select_statement),
         }
     }
 
-    fn execute_select(&mut self, query: &SelectStatement) -> Result<Option<Response>> {
+    fn execute_select_statement(&mut self, query: &SelectStatement) -> Result<Option<Response>> {
         let mut response = vec![];
         let Some(page) = self.db.get_table_page(&query.from_clause)? else {
             return Ok(None);
         };
 
-        let rows = page.get_all_rows()?;
-        for mut row in rows {
-            let mut response_row = row.take_fields();
-            response_row[0] = RType::Num(row.rowid as i64);
-            response.push(response_row);
+        let records = page.get_all_records()?;
+        for mut record in records {
+            let record_id = RType::Num(record.rowid as i64);
+            let _cols_index_to_take =
+                self.get_col_indexes_to_take(&query.from_clause, &query.select_clause);
+            let mut row = record.take_fields();
+            row[0] = record_id;
+
+            response.push(row);
         }
+
         Ok(Some(response))
+    }
+
+    fn get_col_indexes_to_take(
+        &self,
+        from_clause: &str,
+        select_clause: &crate::parser::select::SelectClause,
+    ) -> Vec<usize> {
+        let mut col_indexes = vec![];
+        let Some(table) = self.db.metadata.schema.get(from_clause) else {
+            panic!("Executor: parsing, table should exist at this point")
+        };
+
+        for item in select_clause.items.iter() {
+            if let SelectItem::Identifier(Identifier {
+                value: VType::Str(col_name),
+            }) = item
+            {
+                col_indexes.push(table.get_col_index(col_name));
+            }
+        }
+
+        col_indexes
     }
 }

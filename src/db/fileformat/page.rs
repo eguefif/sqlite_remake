@@ -102,7 +102,7 @@ impl Page {
         }
     }
 
-    pub fn get_all_rows(&self) -> Result<Vec<Record>> {
+    pub fn get_all_records(&self) -> Result<Vec<Record>> {
         let mut rows = vec![];
         let cell_array = self.get_cell_pointer_array();
         let mut cursor = Cursor::new(cell_array);

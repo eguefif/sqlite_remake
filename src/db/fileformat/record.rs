@@ -1,8 +1,6 @@
 /// Module to handle Record parsing from a cell payload
 /// ! See 2.1 Record Format in https://www.sqlite.org/fileformat.html
 /// A record is contains by a Cell.
-// TODO: the mapping with RTYpe should be in RType, record should not know a thing about
-// the outside world
 use crate::db::fileformat::types::Varint;
 use crate::executor::db_response::RType;
 use anyhow::Result;
