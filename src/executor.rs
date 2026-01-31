@@ -1,5 +1,6 @@
 //! TODO: Add documentation
 use crate::db::DB;
+use crate::db::fileformat::record::Record;
 use crate::db::table::Table;
 use crate::executor::db_response::{RType, Response};
 use crate::parser::identifier::{Identifier, VType};
@@ -57,31 +58,27 @@ impl Executor {
     }
 
     fn execute_select_statement(&mut self, query: &SelectStatement) -> Result<Option<Response>> {
-        let mut response = vec![];
         let Some(table) = self.db.take_table(&query.from_clause) else {
             return Ok(None);
         };
 
         let page = self.db.get_page(table.get_root_page())?;
         let records = page.get_all_records()?;
-        for mut record in records {
-            let record_id = RType::Num(record.rowid as i64);
-            let row = record.take_fields();
-            let row = apply_select_clause(record_id, row, &query.select_clause, &table);
-
-            response.push(row);
-        }
-
+        // TODO: refactor to make a pipeline
+        // records.filter(|record| apply_where(record, query.where))
+        //          .map(|record| apply_select(record....))
+        let response = records
+            .into_iter()
+            .map(|record| apply_select_clause(record, &query.select_clause, &table))
+            .collect();
         Ok(Some(response))
     }
 }
 
-fn apply_select_clause(
-    record_id: RType,
-    row: Vec<RType>,
-    select: &SelectClause,
-    table: &Table,
-) -> Vec<RType> {
+// TODO: refactor to take record
+fn apply_select_clause(mut record: Record, select: &SelectClause, table: &Table) -> Vec<RType> {
+    let record_id = RType::Num(record.rowid as i64);
+    let row = record.take_fields();
     let mut selected_row = vec![];
     let cols_index_to_take = get_col_indexes_to_take(select, table);
 
