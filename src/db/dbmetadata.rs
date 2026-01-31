@@ -67,9 +67,8 @@ impl DBMetadata {
         }
     }
 
-    pub fn get_table_root_page(&self, tablename: &str) -> Option<usize> {
-        let table = self.schema.get(tablename)?;
-        Some(table.root_page)
+    pub fn take_table(&mut self, tablename: &str) -> Option<Table> {
+        self.schema.remove(tablename)
     }
 
     pub fn print_metadata(&self) {

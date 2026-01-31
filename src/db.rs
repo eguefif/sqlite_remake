@@ -6,6 +6,7 @@
 //!
 use crate::db::dbmetadata::DBMetadata;
 use crate::db::fileformat::page::Page;
+use crate::db::table::Table;
 use anyhow::Result;
 use std::fs::File;
 use std::io::BufReader;
@@ -49,16 +50,11 @@ impl DB {
         Ok(u16::from_be_bytes([header[16], header[17]]))
     }
 
-    pub fn get_table_page(&mut self, tablename: &str) -> Result<Option<Page>> {
-        let Some(table_root_page) = self.metadata.get_table_root_page(tablename) else {
-            return Ok(None);
-        };
-        let page = self.get_page(table_root_page)?;
-        Ok(Some(page))
+    pub fn take_table(&mut self, tablename: &str) -> Option<Table> {
+        self.metadata.take_table(tablename)
     }
 
-    #[allow(dead_code)]
-    fn get_page(&mut self, root_page: usize) -> Result<Page> {
+    pub fn get_page(&mut self, root_page: usize) -> Result<Page> {
         let mut page_buffer = self.get_new_page_buffer();
         // Page are numbered from 1, we need to subtract 1 to get the offset
         let offset = ((root_page - 1) * self.page_size) as u64;

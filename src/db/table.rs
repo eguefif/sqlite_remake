@@ -28,9 +28,9 @@ pub enum ColType {}
 pub struct Table {
     table_type: TableType,
     name: String,
-    pub root_page: usize,
+    root_page: usize,
     tabledef: String,
-    cols_name: Vec<String>,
+    pub cols_name: Vec<String>,
 }
 
 impl Table {
@@ -55,5 +55,9 @@ impl Table {
             .iter()
             .position(|name| col_name == name)
             .unwrap()
+    }
+
+    pub fn get_root_page(&self) -> usize {
+        self.root_page
     }
 }
