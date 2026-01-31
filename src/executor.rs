@@ -83,16 +83,7 @@ fn apply_select_clause(
     table: &Table,
 ) -> Vec<RType> {
     let mut selected_row = vec![];
-    let Some(cols_index_to_take) = get_col_indexes_to_take(select, table) else {
-        return selected_row;
-    };
-    if cols_index_to_take.len() == 0 {
-        for entry in row.into_iter() {
-            selected_row.push(entry);
-        }
-        selected_row[0] = record_id;
-        return selected_row;
-    }
+    let cols_index_to_take = get_col_indexes_to_take(select, table);
 
     if cols_index_to_take.contains(&0) {
         selected_row.push(record_id);
@@ -110,10 +101,10 @@ fn apply_select_clause(
     selected_row
 }
 
-fn get_col_indexes_to_take(select_clause: &SelectClause, table: &Table) -> Option<Vec<usize>> {
+fn get_col_indexes_to_take(select_clause: &SelectClause, table: &Table) -> Vec<usize> {
     let mut col_indexes = vec![];
     if select_clause.items.len() == 0 {
-        return None;
+        return col_indexes;
     }
 
     for item in select_clause.items.iter() {
@@ -123,10 +114,12 @@ fn get_col_indexes_to_take(select_clause: &SelectClause, table: &Table) -> Optio
             }) => {
                 col_indexes.push(table.get_col_index(col_name));
             }
-            SelectItem::Star => return Some(vec![]),
+            SelectItem::Star => {
+                return (0..table.cols_name.len()).into_iter().collect();
+            }
             _ => panic!(),
         }
     }
 
-    Some(col_indexes)
+    col_indexes
 }
