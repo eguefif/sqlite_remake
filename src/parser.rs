@@ -17,6 +17,7 @@ use crate::parser::{
     select::{SelectClause, SelectItem, SelectStatement},
     statement::Statement,
     tokenizer::{Token, Tokenizer},
+    where_clause::Where,
 };
 use anyhow::{Result, anyhow};
 use std::iter::Iterator;
@@ -26,6 +27,7 @@ pub mod identifier;
 pub mod select;
 pub mod statement;
 pub mod tokenizer;
+pub mod where_clause;
 
 pub struct Parser<'a> {
     tokenizer: Tokenizer<'a>,
@@ -37,9 +39,9 @@ impl<'a> Parser<'a> {
         }
     }
 
-    // If the next token matches the expected token, consume it and return it
-    // if not, returns an error
-    // If there is no next token, return None
+    //// If the next token matches the expected token, consume it and return it
+    //// if not, returns an error
+    //// If there is no next token, return None
     fn expect_token(&mut self, expected_token: Token) -> Result<Token> {
         if let Some(next) = self.tokenizer.next() {
             if next == expected_token {
@@ -55,9 +57,9 @@ impl<'a> Parser<'a> {
         Err(anyhow!("Expected token {} but got EOF", expected_token))
     }
 
-    // Peek the next token and check if it matches the expected token
-    // returns an error if it does not match or if there is no next token
-    // or EOF
+    /// Peek the next token and check if it matches the expected token
+    /// returns an error if it does not match or if there is no next token
+    /// or EOF
     #[allow(dead_code)]
     fn expect_token_peek(&mut self, expected_token: Token) -> Result<()> {
         if let Some(peeked) = self.tokenizer.peek() {
@@ -76,18 +78,9 @@ impl<'a> Parser<'a> {
 
     fn parse_select_statement(&mut self, token: Token) -> Result<Statement> {
         let select_clause = self.parse_select_clause(token)?;
-        let mut select_statement =
-            SelectStatement::new(select_clause, "".to_string(), "".to_string());
-
-        let Some(next) = self.tokenizer.next() else {
-            return Ok(Statement::Select(select_statement));
-        };
-
-        if next == Token::From {
-            self.parse_from(&mut select_statement)?;
-        } else {
-            return Err(anyhow!("Parsing: expected From got {}", next));
-        }
+        let select_statement = SelectStatement::new(select_clause, "".to_string(), None);
+        let select_statement = self.try_parse_from(select_statement)?;
+        let select_statement = self.try_parse_where(select_statement)?;
 
         Ok(Statement::Select(select_statement))
     }
@@ -152,7 +145,24 @@ impl<'a> Parser<'a> {
         Ok(SelectItem::Function(FuncCall::new(function_name, items)))
     }
 
-    fn parse_from(&mut self, select_statement: &mut SelectStatement) -> Result<()> {
+    fn try_parse_from(&mut self, select_statement: SelectStatement) -> Result<SelectStatement> {
+        if self.is_statement_end() {
+            return Ok(select_statement);
+        }
+
+        let next = self
+            .tokenizer
+            .next()
+            .expect("We know from the last if statement that there is next token");
+
+        if let Token::From = next {
+            self.parse_from(select_statement)
+        } else {
+            return Err(anyhow!("Parsing: expected From got {}", next));
+        }
+    }
+
+    fn parse_from(&mut self, mut select_statement: SelectStatement) -> Result<SelectStatement> {
         let Some(next) = self.tokenizer.next() else {
             return Err(anyhow!("Parsing: expected table in FROM statement got EOF",));
         };
@@ -161,14 +171,64 @@ impl<'a> Parser<'a> {
         } else {
             return Err(anyhow!("Parsing:: expect table identifier got: {}", next));
         }
-        Ok(())
+        Ok(select_statement)
+    }
+
+    fn is_statement_end(&mut self) -> bool {
+        if let Some(peek) = self.tokenizer.peek() {
+            match peek {
+                Token::SemiColon => {
+                    self.tokenizer.next();
+                    true
+                }
+                _ => false,
+            }
+        } else {
+            self.tokenizer.next();
+            true
+        }
+    }
+
+    fn try_parse_where(&mut self, select_statement: SelectStatement) -> Result<SelectStatement> {
+        if self.is_statement_end() {
+            return Ok(select_statement);
+        }
+
+        let next = self
+            .tokenizer
+            .next()
+            .expect("We know from the last if statement that there is next token");
+
+        if let Token::Where = next {
+            self.parse_where(select_statement)
+        } else {
+            return Err(anyhow!("Parsing: expected From got {}", next));
+        }
+    }
+
+    fn parse_where(&mut self, mut select_statement: SelectStatement) -> Result<SelectStatement> {
+        let Some(left) = self.tokenizer.next() else {
+            return Err(anyhow!("Parsing:: expect where identifier left"));
+        };
+
+        let Some(operator) = self.tokenizer.next() else {
+            return Err(anyhow!("Parsing:: expect operator token"));
+        };
+
+        let Some(right) = self.tokenizer.next() else {
+            return Err(anyhow!("Parsing:: expect where identifier right"));
+        };
+        select_statement.where_clause = Some(Where::new(left, operator, right)?);
+
+        Ok(select_statement)
     }
 }
 
 impl Iterator for Parser<'_> {
     type Item = Result<Statement>;
 
-    // Parse the next query
+    // Parse the next query.
+    // We handle only one statement for now, the select statement.
     fn next(&mut self) -> Option<Self::Item> {
         let Some(token) = self.tokenizer.next() else {
             return None;
@@ -210,6 +270,16 @@ mod tests {
     fn it_should_parse_from() {
         let query = "SELECT COUNT(*) FROM apples";
         let mut parser = Parser::new("SELECT COUNT(*) FROM apples");
+
+        let parsed_query = parser.next().unwrap().unwrap();
+        let result = format!("{}", parsed_query);
+        assert_eq!(query, result)
+    }
+
+    #[test]
+    fn it_should_parse_where() {
+        let query = "SELECT COUNT(*) FROM apples WHERE name = 'green'";
+        let mut parser = Parser::new("SELECT COUNT(*) FROM apples WHERE name='green'");
 
         let parsed_query = parser.next().unwrap().unwrap();
         let result = format!("{}", parsed_query);

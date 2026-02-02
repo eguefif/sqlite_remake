@@ -1,6 +1,6 @@
-use crate::parser::function::FuncCall;
 use crate::parser::identifier::Identifier;
 use crate::parser::tokenizer::Token;
+use crate::parser::{function::FuncCall, where_clause::Where};
 use anyhow::{Result, anyhow};
 use itertools::Itertools;
 use std::fmt;
@@ -9,11 +9,15 @@ use std::fmt;
 pub struct SelectStatement {
     pub select_clause: SelectClause,
     pub from_clause: String,
-    pub where_clause: String,
+    pub where_clause: Option<Where>,
 }
 
 impl SelectStatement {
-    pub fn new(select_clause: SelectClause, from_clause: String, where_clause: String) -> Self {
+    pub fn new(
+        select_clause: SelectClause,
+        from_clause: String,
+        where_clause: Option<Where>,
+    ) -> Self {
         Self {
             select_clause,
             from_clause,
@@ -33,8 +37,8 @@ impl fmt::Display for SelectStatement {
             write!(f, " FROM {}", self.from_clause)?;
         }
 
-        if self.where_clause.len() > 0 {
-            write!(f, " WHERE {}", self.where_clause)?;
+        if let Some(where_clause) = &self.where_clause {
+            write!(f, " {}", where_clause)?;
         }
         Ok(())
     }

@@ -64,24 +64,31 @@ impl Executor {
 
         let page = self.db.get_page(table.get_root_page())?;
         let records = page.get_all_records()?;
-        // TODO: refactor to make a pipeline
-        // records.filter(|record| apply_where(record, query.where))
-        //          .map(|record| apply_select(record....))
         let response = records
             .into_iter()
+            //.filter(|record| apply_where_clause(record, &query.where_clause, &table))
             .map(|record| apply_select_clause(record, &query.select_clause, &table))
             .collect();
         Ok(Some(response))
     }
 }
 
-// TODO: refactor to take record
+#[allow(unused)]
+fn apply_where_clause(record: &Record, where_clause: &str, table: &Table) -> bool {
+    todo!()
+}
+
 fn apply_select_clause(mut record: Record, select: &SelectClause, table: &Table) -> Vec<RType> {
     let record_id = RType::Num(record.rowid as i64);
     let row = record.take_fields();
     let mut selected_row = vec![];
     let cols_index_to_take = get_col_indexes_to_take(select, table);
 
+    // TODO: this won't work all the time
+    // SQLite uses the rowid when the id of the table
+    // is a unique primary key. In the following, I assume that
+    // 0 index column is a unique primary key. We should check the table
+    // schema first
     if cols_index_to_take.contains(&0) {
         selected_row.push(record_id);
     }
