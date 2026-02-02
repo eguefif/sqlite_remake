@@ -89,6 +89,10 @@ impl Record {
     pub fn get_i48(_cursor: &mut Cursor<&[u8]>) -> Result<i64> {
         todo!("Handle i48 field type in record")
     }
+
+    pub fn get_column_value(&self, index: usize) -> &RType {
+        &self.fields[index]
+    }
 }
 
 #[derive(Debug)]

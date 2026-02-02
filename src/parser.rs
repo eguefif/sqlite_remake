@@ -16,7 +16,8 @@ use crate::parser::{
     identifier::{Identifier, VType},
     select::{SelectClause, SelectItem, SelectStatement},
     statement::Statement,
-    tokenizer::{Token, Tokenizer},
+    token::Token,
+    tokenizer::Tokenizer,
     where_clause::Where,
 };
 use anyhow::{Result, anyhow};
@@ -26,6 +27,7 @@ pub mod function;
 pub mod identifier;
 pub mod select;
 pub mod statement;
+pub mod token;
 pub mod tokenizer;
 pub mod where_clause;
 

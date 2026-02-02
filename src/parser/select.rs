@@ -1,5 +1,5 @@
 use crate::parser::identifier::Identifier;
-use crate::parser::tokenizer::Token;
+use crate::parser::token::Token;
 use crate::parser::{function::FuncCall, where_clause::Where};
 use anyhow::{Result, anyhow};
 use itertools::Itertools;

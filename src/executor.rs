@@ -5,6 +5,7 @@ use crate::db::table::Table;
 use crate::executor::db_response::{RType, Response};
 use crate::parser::identifier::{Identifier, VType};
 use crate::parser::select::{SelectClause, SelectItem};
+use crate::parser::where_clause::Where;
 use crate::parser::{Parser, select::SelectStatement, statement::Statement};
 use anyhow::Result;
 
@@ -66,7 +67,13 @@ impl Executor {
         let records = page.get_all_records()?;
         let response = records
             .into_iter()
-            //.filter(|record| apply_where_clause(record, &query.where_clause, &table))
+            .filter(|record| {
+                if let Some(where_clause) = &query.where_clause {
+                    apply_where_clause(record, &where_clause, &table)
+                } else {
+                    true
+                }
+            })
             .map(|record| apply_select_clause(record, &query.select_clause, &table))
             .collect();
         Ok(Some(response))
@@ -74,8 +81,14 @@ impl Executor {
 }
 
 #[allow(unused)]
-fn apply_where_clause(record: &Record, where_clause: &str, table: &Table) -> bool {
-    todo!()
+fn apply_where_clause(record: &Record, where_clause: &Where, table: &Table) -> bool {
+    // For now, we assume there is only one identifier in the where clause
+    if let Some(identifier) = where_clause.get_identifier() {
+        let index = table.get_col_index(identifier);
+        let identifier_value = record.get_column_value(index);
+        return where_clause.evaluate(Some(identifier_value));
+    };
+    where_clause.evaluate(None)
 }
 
 fn apply_select_clause(mut record: Record, select: &SelectClause, table: &Table) -> Vec<RType> {

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::fmt;
 
-use crate::parser::tokenizer::Token;
+use crate::{executor::db_response::RType, parser::token::Token};
 
 #[derive(Debug)]
 pub enum Operator {
@@ -26,6 +26,8 @@ impl fmt::Display for Operator {
     }
 }
 
+// TODO: refactor for a more complete way of parsing where
+// Introduce the concept of condition
 #[derive(Debug)]
 pub struct Where {
     left: Token,
@@ -41,10 +43,54 @@ impl Where {
             right,
         })
     }
+
+    pub fn get_identifier(&self) -> Option<&str> {
+        if let Token::Ident(ident) = &self.right {
+            return Some(ident);
+        };
+        if let Token::Ident(ident) = &self.left {
+            return Some(ident);
+        };
+        None
+    }
+
+    pub fn evaluate(&self, value: Option<&RType>) -> bool {
+        if let Some(value) = value {
+            let left: RType = self.right.into_rtype();
+            &left == value
+        } else {
+            self.left == self.right
+        }
+    }
 }
 
 impl fmt::Display for Where {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "WHERE {} {} {}", self.left, self.operator, self.right)
+    }
+}
+
+#[cfg(test)]
+
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_should_evaluate_none_1() {
+        let where_clause = Where::new(
+            Token::Num(5),
+            Token::Equal,
+            Token::QIdent("Hello".to_string()),
+        )
+        .unwrap();
+        let result = where_clause.evaluate(None);
+        assert_eq!(result, false)
+    }
+
+    #[test]
+    fn it_should_evaluate_none_2() {
+        let where_clause = Where::new(Token::Num(5), Token::Equal, Token::Num(1)).unwrap();
+        let result = where_clause.evaluate(None);
+        assert_eq!(result, true)
     }
 }

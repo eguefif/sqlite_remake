@@ -21,7 +21,7 @@
 //!
 use std::fmt::{Display, Formatter, Result};
 
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub enum RType {
     Num(i64),
     Blob(Vec<u8>),
