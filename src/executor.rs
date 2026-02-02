@@ -63,6 +63,7 @@ impl Executor {
             return Ok(None);
         };
 
+        // TODO: we need to replace the ID by rowid when constructing record
         let page = self.db.get_page(table.get_root_page())?;
         let records = page.get_all_records()?;
         let response = records
@@ -85,8 +86,11 @@ fn apply_where_clause(record: &Record, where_clause: &Where, table: &Table) -> b
     // For now, we assume there is only one identifier in the where clause
     if let Some(identifier) = where_clause.get_identifier() {
         let index = table.get_col_index(identifier);
-        let identifier_value = record.get_column_value(index);
-        return where_clause.evaluate(Some(identifier_value));
+        if index != 0 {
+            let identifier_value = record.get_column_value(index);
+            return where_clause.evaluate(Some(identifier_value));
+        }
+        return where_clause.evaluate(Some(&RType::Num(record.rowid as i64)));
     };
     where_clause.evaluate(None)
 }

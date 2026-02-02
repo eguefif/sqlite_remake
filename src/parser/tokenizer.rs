@@ -93,6 +93,22 @@ impl Iterator for Tokenizer<'_> {
                 }
                 return Some(Token::LT);
             }
+            '\'' => {
+                let mut token_qident = String::new();
+                token_qident.push(next);
+                loop {
+                    let Some(peek) = self.buffer.peek() else {
+                        break;
+                    };
+                    if *peek == '\'' {
+                        token_qident.push(self.buffer.next().unwrap());
+                        break;
+                    }
+                    let next = self.buffer.next().unwrap();
+                    token_qident.push(next);
+                }
+                return Some(Token::from_str(&token_qident));
+            }
             _ => {
                 let mut token_str = String::new();
                 loop {
