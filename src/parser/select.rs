@@ -58,6 +58,25 @@ impl SelectClause {
         }
     }
 
+    pub fn is_function(&self) -> bool {
+        self.items.iter().any(|item| {
+            if let SelectItem::Function(_) = item {
+                return true;
+            }
+            false
+        });
+        false
+    }
+
+    pub fn get_function(&self) -> Option<&FuncCall> {
+        for item in self.items.iter() {
+            if let SelectItem::Function(func) = item {
+                return Some(&func);
+            }
+        }
+        None
+    }
+
     pub fn push_item(&mut self, item: SelectItem) {
         self.items.push(item);
     }

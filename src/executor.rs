@@ -1,8 +1,10 @@
 //! TODO: Add documentation
 use crate::db::DB;
+use crate::db::fileformat::page::Page;
 use crate::db::fileformat::record::Record;
 use crate::db::table::Table;
 use crate::executor::db_response::{RType, Response};
+use crate::parser::function::FuncCall;
 use crate::parser::identifier::{Identifier, VType};
 use crate::parser::select::{SelectClause, SelectItem};
 use crate::parser::where_clause::Where;
@@ -77,7 +79,19 @@ impl Executor {
             })
             .map(|record| apply_select_clause(record, &query.select_clause, &table))
             .collect();
-        Ok(Some(response))
+
+        if let Some(func) = query.select_clause.get_function() {
+            Ok(Some(vec![execute_function(&page, func)]))
+        } else {
+            Ok(Some(response))
+        }
+    }
+}
+
+fn execute_function(page: &Page, func: &FuncCall) -> Vec<RType> {
+    match func.function_name.as_str() {
+        "count" => vec![RType::Num(page.get_record_number() as i64)],
+        _ => vec![],
     }
 }
 
@@ -138,7 +152,8 @@ fn get_col_indexes_to_take(select_clause: &SelectClause, table: &Table) -> Vec<u
             SelectItem::Star => {
                 return (0..table.cols_name.len()).into_iter().collect();
             }
-            _ => panic!(),
+            SelectItem::Function(fct) => {}
+            _ => panic!("Should always b"),
         }
     }
 

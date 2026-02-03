@@ -4,7 +4,7 @@ use std::fmt;
 
 #[derive(Debug)]
 pub struct FuncCall {
-    function_name: String,
+    pub function_name: String,
     pub(self) params: Vec<SelectItem>,
 }
 
