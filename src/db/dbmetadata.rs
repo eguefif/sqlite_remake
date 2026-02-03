@@ -2,7 +2,7 @@
 //!
 use crate::db::fileformat::page::Page;
 use crate::db::table::{SchemaTable, Table};
-use crate::executor::db_response::RType;
+use crate::executor::db_response::{RType, Response};
 use std::collections::HashMap;
 
 pub struct DBMetadata {
@@ -73,9 +73,16 @@ impl DBMetadata {
         self.schema.remove(tablename)
     }
 
-    pub fn print_metadata(&self) {
-        println!("database page size: {}", self.get_page_size());
-        println!("number of tables: {}", self.get_number_of_table());
+    pub fn get_metadata(&self) -> Response {
+        let page_size = vec![
+            RType::Str("database page size:".to_string()),
+            RType::Num(self.get_page_size() as i64),
+        ];
+        let table_number = vec![
+            RType::Str("number of tables".to_string()),
+            RType::Num(self.get_number_of_table() as i64),
+        ];
+        vec![page_size, table_number]
     }
 
     fn get_page_size(&self) -> u16 {
@@ -93,17 +100,12 @@ impl DBMetadata {
     }
 
     // Print tablenames in alphabetical order
-    pub fn print_table_names(&self) {
+    pub fn get_table_names(&self) -> Response {
         let mut tablenames = Vec::new();
         for (tablename, _) in self.schema.iter() {
-            tablenames.push(tablename.to_string())
+            tablenames.push(RType::Str(tablename.to_string()))
         }
         tablenames.sort();
-        for (i, tablename) in tablenames.iter().enumerate() {
-            if i != 0 {
-                print!(" ");
-            }
-            print!("{}", tablename);
-        }
+        vec![tablenames]
     }
 }

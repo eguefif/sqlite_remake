@@ -22,20 +22,24 @@ impl Executor {
         Self { db }
     }
 
-    /// Execute a command, which can be either a special command (like .dbinfo or .tables)
-    /// or a SQL query.
+    /// Execute a command.
+    /// There are two types of command:
+    /// * special commands: .dbinfo, .tables
+    /// * a SQL query.
     /// Returns None for special commands, or Some(Vec<(Query, Response)) for SQL queries.
     /// Response is a Vec<Vec<[Rtype](crate::executor::db_response)>>
     pub fn execute(&mut self, command: &str) -> Result<Option<Vec<(Statement, Response)>>> {
         match command {
-            // TODO: change print, should return a response
-            ".dbinfo" => self.db.metadata.print_metadata(),
-            ".tables" => self.db.metadata.print_table_names(),
-            _ => {
-                return self.execute_queries(command);
-            }
+            ".dbinfo" => Ok(Some(vec![(
+                Statement::Command(command.to_string()),
+                self.db.metadata.get_metadata(),
+            )])),
+            ".tables" => Ok(Some(vec![(
+                Statement::Command(command.to_string()),
+                self.db.metadata.get_table_names(),
+            )])),
+            _ => self.execute_queries(command),
         }
-        Ok(None)
     }
 
     fn execute_queries(&mut self, queries: &str) -> Result<Option<Vec<(Statement, Response)>>> {
@@ -57,6 +61,11 @@ impl Executor {
     fn execute_query(&mut self, query: &Statement) -> Result<Option<Response>> {
         match query {
             Statement::Select(select_statement) => self.execute_select_statement(select_statement),
+            _ => {
+                todo!(
+                    "Refactor this part: it is because of the return type of execute which needs Statement. I added a Statement Command for .dbinfo"
+                )
+            }
         }
     }
 

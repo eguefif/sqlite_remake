@@ -15,12 +15,14 @@ use std::fmt;
 #[derive(Debug)]
 pub enum Statement {
     Select(SelectStatement),
+    Command(String),
 }
 
 impl fmt::Display for Statement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Statement::Select(statement) => write!(f, "{}", statement),
+            Statement::Command(cmd) => write!(f, "{}", cmd),
         }
     }
 }
