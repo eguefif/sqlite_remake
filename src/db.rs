@@ -34,7 +34,7 @@ impl DB {
         buffer.resize(page_size as usize, 0);
         buf_reader.read_exact(&mut buffer)?;
         let page = Page::new(buffer, 1)?;
-        let metadata = DBMetadata::new(page);
+        let metadata = DBMetadata::new(page)?;
 
         Ok(Self {
             metadata,

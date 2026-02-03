@@ -16,7 +16,10 @@ fn main() -> Result<()> {
 
     // Parse command and act accordingly
     let command = &args[2];
-    let db = DB::new(&args[1])?;
+    let db = match DB::new(&args[1]) {
+        Ok(db) => db,
+        Err(error) => bail!("Impossible to read database metadata: {}", error),
+    };
     let mut executor = Executor::new(db);
     if let Some(response) = executor.execute(command)? {
         display_response(&response);

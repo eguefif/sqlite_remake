@@ -3,6 +3,7 @@
 use crate::db::fileformat::page::Page;
 use crate::db::table::{SchemaTable, Table};
 use crate::executor::db_response::{RType, Response};
+use anyhow::{Result, anyhow};
 use std::collections::HashMap;
 
 pub struct DBMetadata {
@@ -11,28 +12,28 @@ pub struct DBMetadata {
 }
 
 impl DBMetadata {
-    pub fn new(page: Page) -> Self {
-        let schema = Self::create_table_schema(&page);
-        Self { page, schema }
+    pub fn new(page: Page) -> Result<Self> {
+        let schema = Self::create_table_schema(&page)?;
+        Ok(Self { page, schema })
     }
 
-    fn create_table_schema(page: &Page) -> SchemaTable {
+    fn create_table_schema(page: &Page) -> Result<SchemaTable> {
         let mut schema: SchemaTable = HashMap::new();
         let schema_table = Table::schema_table();
         for n in 0..page.get_record_number() {
             let mut record = page.get_nth_record(n, &schema_table);
             let Some(RType::Str(table_type)) = record.take_field("table_type") else {
-                panic!("Wrong type table type schema")
+                return Err(anyhow!("Wrong type table type schema"));
             };
             let Some(RType::Str(name)) = record.take_field("name") else {
-                panic!("Wrong type name schema")
+                return Err(anyhow!("Wrong type name schema"));
             };
             let Some(RType::Str(tablename)) = record.take_field("tablename") else {
-                panic!("Wrong type tablename schema")
+                return Err(anyhow!("Wrong type tablename schema"));
             };
-            let rootpage = Self::get_root_page(record.take_field("rootpage"));
+            let rootpage = Self::get_root_page(record.take_field("rootpage"))?;
             let Some(RType::Str(tabledef)) = record.take_field("tabledef") else {
-                panic!("Wrong type tabledef")
+                return Err(anyhow!("Wrong type tabledef"));
             };
 
             let cols_name = Self::get_cols_name(&tabledef);
@@ -40,7 +41,7 @@ impl DBMetadata {
             let table = Table::new(table_type, name, rootpage, tabledef, cols_name);
             schema.insert(tablename.to_string(), table);
         }
-        schema
+        Ok(schema)
     }
 
     fn get_cols_name(tabledef: &str) -> Vec<String> {
@@ -59,13 +60,29 @@ impl DBMetadata {
         }
     }
 
-    fn get_root_page(record: Option<RType>) -> usize {
+    fn get_root_page(record: Option<RType>) -> Result<usize> {
         match record {
-            Some(RType::Null) => panic!("Table parsing: this type cannot be used for root_page"),
-            Some(RType::Num(num)) => num as usize,
-            Some(RType::Blob(_)) => panic!("Table parsing: this type cannot be used for root_page"),
-            Some(RType::Str(_)) => panic!("Table parsing: this type cannot be used for root_page"),
-            None => panic!("Table parsing: this type cannot be used for root_page"),
+            Some(RType::Null) => {
+                return Err(anyhow!(
+                    "Table parsing: this type cannot be used for root_page"
+                ));
+            }
+            Some(RType::Num(num)) => Ok(num as usize),
+            Some(RType::Blob(_)) => {
+                return Err(anyhow!(
+                    "Table parsing: this type cannot be used for root_page"
+                ));
+            }
+            Some(RType::Str(_)) => {
+                return Err(anyhow!(
+                    "Table parsing: this type cannot be used for root_page"
+                ));
+            }
+            None => {
+                return Err(anyhow!(
+                    "Table parsing: this type cannot be used for root_page"
+                ));
+            }
         }
     }
 
