@@ -95,7 +95,6 @@ fn execute_function(page: &Page, func: &FuncCall) -> Vec<RType> {
     }
 }
 
-#[allow(unused)]
 fn apply_where_clause(record: &Record, where_clause: &Where, table: &Table) -> bool {
     // For now, we assume there is only one identifier in the where clause
     if let Some(identifier) = where_clause.get_identifier() {
@@ -120,17 +119,11 @@ fn apply_select_clause(mut record: Record, select: &SelectClause, table: &Table)
     // is a unique primary key. In the following, I assume that
     // 0 index column is a unique primary key. We should check the table
     // schema first
-    if cols_index_to_take.contains(&0) {
-        selected_row.push(record_id);
-    }
-
-    for (i, entry) in row.into_iter().enumerate() {
-        if cols_index_to_take.contains(&i) {
-            if i == 0 {
-                continue;
-            } else {
-                selected_row.push(entry);
-            }
+    for index in cols_index_to_take {
+        if index == 0 {
+            selected_row.push(record_id.clone());
+        } else {
+            selected_row.push(row[index].clone())
         }
     }
     selected_row

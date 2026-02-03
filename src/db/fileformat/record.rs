@@ -43,6 +43,7 @@ impl Record {
             fields,
         })
     }
+
     pub fn take_fields(&mut self) -> Vec<RType> {
         std::mem::take(&mut self.fields)
     }
