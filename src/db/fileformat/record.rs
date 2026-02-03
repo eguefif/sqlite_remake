@@ -1,10 +1,11 @@
 /// Module to handle Record parsing from a cell payload
 /// ! See 2.1 Record Format in https://www.sqlite.org/fileformat.html
 /// A record is contains by a Cell.
-use crate::db::fileformat::types::Varint;
+use crate::db::{fileformat::types::Varint, table::Table};
 use crate::executor::db_response::RType;
 use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
+use std::collections::HashMap;
 use std::io::{Cursor, Read};
 
 #[allow(unused)]
@@ -14,11 +15,11 @@ pub struct Record {
     pub rowid: usize,
     header: RecordHeader,
     record_start: usize, // When actual record start, after cell header + record header + rowid
-    fields: Vec<RType>,
+    fields: HashMap<String, RType>,
 }
 
 impl Record {
-    pub fn new(buffer: &[u8]) -> Result<Self> {
+    pub fn new(buffer: &[u8], table: &Table) -> Result<Self> {
         // Parsing cell Header
         let cell_size = Varint::new(buffer);
         let rowid = Varint::new(&buffer[cell_size.size..]);
@@ -29,11 +30,12 @@ impl Record {
 
         // Parsing record
         let record_start = cell_size.size + rowid.size + header.size;
-        let mut fields: Vec<RType> = vec![];
+        let mut fields: HashMap<String, RType> = HashMap::new();
         let mut cursor = Cursor::new(&buffer[record_start..]);
-        for col_serial_type in header.col_serial_types.iter() {
+        for (i, col_serial_type) in header.col_serial_types.iter().enumerate() {
             let field = Self::from_col_serial_type(&col_serial_type, &mut cursor);
-            fields.push(field?);
+            let key = table.get_col_name(i);
+            fields.insert(key, field?);
         }
         Ok(Self {
             cell_size: cell_size.varint as usize,
@@ -44,16 +46,13 @@ impl Record {
         })
     }
 
-    pub fn take_fields(&mut self) -> Vec<RType> {
+    pub fn take_fields(&mut self) -> HashMap<String, RType> {
         std::mem::take(&mut self.fields)
     }
 
     /// Move out a value from the record
-    pub fn take_field(&mut self) -> RType {
-        if self.fields.len() > 0 {
-            return self.fields.remove(0);
-        }
-        panic!("Record: cannot take field anymore, fields.len() == 0",);
+    pub fn take_field(&mut self, key: &str) -> Option<RType> {
+        return self.fields.remove(key);
     }
 
     pub fn from_col_serial_type(
@@ -91,8 +90,8 @@ impl Record {
         todo!("Handle i48 field type in record")
     }
 
-    pub fn get_column_value(&self, index: usize) -> &RType {
-        &self.fields[index]
+    pub fn get_column_value(&self, key: &str) -> &RType {
+        &self.fields.get(key).unwrap()
     }
 }
 

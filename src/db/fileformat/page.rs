@@ -15,7 +15,7 @@
 //! A `cell` contains a record. See [Record] module for more information about records.
 //! But Cell format depends on the BTree type. See 1.6. B-tree Pages in
 //! [Sqlite fileformat documentation](https://www.sqlite.org/fileformat.html)
-use crate::db::fileformat::record::Record;
+use crate::db::{fileformat::record::Record, table::Table};
 use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
 use std::io::Cursor;
@@ -102,14 +102,14 @@ impl Page {
         }
     }
 
-    pub fn get_all_records(&self) -> Result<Vec<Record>> {
+    pub fn get_all_records(&self, table: &Table) -> Result<Vec<Record>> {
         let mut rows = vec![];
         let cell_array = self.get_cell_pointer_array();
         let mut cursor = Cursor::new(cell_array);
 
         for _ in 0..self.get_record_number() {
             let offset = cursor.read_u16::<BigEndian>()? as usize;
-            let record = Record::new(&self.get_slice(offset, None))?;
+            let record = Record::new(&self.get_slice(offset, None), table)?;
             rows.push(record);
         }
 
@@ -117,12 +117,12 @@ impl Page {
     }
 
     /// This function is used to iterate over records in a page
-    pub fn get_nth_record(&self, index: usize) -> Record {
+    pub fn get_nth_record(&self, index: usize, schema_table: &Table) -> Record {
         let cell_array_offset = index * 2;
         let cell_array = self.get_cell_pointer_array();
         let mut cursor = Cursor::new(&cell_array[cell_array_offset..]);
         let offset = cursor.read_u16::<BigEndian>().unwrap() as usize;
-        let record = Record::new(&self.get_slice(offset as usize, None))
+        let record = Record::new(&self.get_slice(offset as usize, None), schema_table)
             .expect("Error: indexing record, file parsing failed");
         record
     }

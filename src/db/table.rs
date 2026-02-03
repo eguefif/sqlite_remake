@@ -50,11 +50,33 @@ impl Table {
         }
     }
 
+    pub fn schema_table() -> Self {
+        Self {
+            table_type: TableType::from_str("table"),
+            name: "Schema".to_string(),
+            root_page: 0,
+            tabledef: "".to_string(),
+            cols_name: vec![
+                "table_type".to_string(),
+                "name".to_string(),
+                "tablename".to_string(),
+                "rootpage".to_string(),
+                "tabledef".to_string(),
+            ],
+        }
+    }
+
     pub fn get_col_index(&self, col_name: &str) -> usize {
         self.cols_name
             .iter()
             .position(|name| col_name == name)
             .unwrap()
+    }
+    pub fn get_col_name(&self, index: usize) -> String {
+        if self.cols_name.len() > index {
+            return self.cols_name[index].clone();
+        }
+        panic!("Table index: try to get out of range field")
     }
 
     pub fn get_root_page(&self) -> usize {

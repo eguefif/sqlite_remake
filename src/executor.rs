@@ -67,12 +67,12 @@ impl Executor {
 
         // TODO: we need to replace the ID by rowid when constructing record
         let page = self.db.get_page(table.get_root_page())?;
-        let records = page.get_all_records()?;
+        let records = page.get_all_records(&table)?;
         let response = records
             .into_iter()
             .filter(|record| {
                 if let Some(where_clause) = &query.where_clause {
-                    apply_where_clause(record, &where_clause, &table)
+                    apply_where_clause(record, &where_clause)
                 } else {
                     true
                 }
@@ -95,12 +95,11 @@ fn execute_function(page: &Page, func: &FuncCall) -> Vec<RType> {
     }
 }
 
-fn apply_where_clause(record: &Record, where_clause: &Where, table: &Table) -> bool {
+fn apply_where_clause(record: &Record, where_clause: &Where) -> bool {
     // For now, we assume there is only one identifier in the where clause
     if let Some(identifier) = where_clause.get_identifier() {
-        let index = table.get_col_index(identifier);
-        if index != 0 {
-            let identifier_value = record.get_column_value(index);
+        if identifier != "id" {
+            let identifier_value = record.get_column_value(identifier);
             return where_clause.evaluate(Some(identifier_value));
         }
         return where_clause.evaluate(Some(&RType::Num(record.rowid as i64)));
@@ -110,26 +109,21 @@ fn apply_where_clause(record: &Record, where_clause: &Where, table: &Table) -> b
 
 fn apply_select_clause(mut record: Record, select: &SelectClause, table: &Table) -> Vec<RType> {
     let record_id = RType::Num(record.rowid as i64);
-    let row = record.take_fields();
     let mut selected_row = vec![];
-    let cols_index_to_take = get_col_indexes_to_take(select, table);
+    let col_names = get_selected_colname(select, table);
 
-    // TODO: this won't work all the time
-    // SQLite uses the rowid when the id of the table
-    // is a unique primary key. In the following, I assume that
-    // 0 index column is a unique primary key. We should check the table
-    // schema first
-    for index in cols_index_to_take {
-        if index == 0 {
+    // TODO: when building record, should replace id with rowid
+    for col_name in col_names {
+        if col_name == "id" {
             selected_row.push(record_id.clone());
         } else {
-            selected_row.push(row[index].clone())
+            selected_row.push(record.take_field(col_name).unwrap())
         }
     }
     selected_row
 }
 
-fn get_col_indexes_to_take(select_clause: &SelectClause, table: &Table) -> Vec<usize> {
+fn get_selected_colname<'a>(select_clause: &'a SelectClause, table: &'a Table) -> Vec<&'a str> {
     let mut col_indexes = vec![];
     if select_clause.items.len() == 0 {
         return col_indexes;
@@ -140,13 +134,17 @@ fn get_col_indexes_to_take(select_clause: &SelectClause, table: &Table) -> Vec<u
             SelectItem::Identifier(Identifier {
                 value: VType::Str(col_name),
             }) => {
-                col_indexes.push(table.get_col_index(col_name));
+                col_indexes.push(col_name);
             }
             SelectItem::Star => {
-                return (0..table.cols_name.len()).into_iter().collect();
+                return table
+                    .cols_name
+                    .iter()
+                    .map(|str| str.as_ref())
+                    .collect::<Vec<&'a str>>();
             }
-            SelectItem::Function(fct) => {}
-            _ => panic!("Should always b"),
+            SelectItem::Function(_) => {}
+            _ => panic!("Should always be a valid select item: {:?}", item),
         }
     }
 

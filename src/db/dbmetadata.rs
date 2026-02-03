@@ -18,19 +18,20 @@ impl DBMetadata {
 
     fn create_table_schema(page: &Page) -> SchemaTable {
         let mut schema: SchemaTable = HashMap::new();
+        let schema_table = Table::schema_table();
         for n in 0..page.get_record_number() {
-            let mut record = page.get_nth_record(n);
-            let RType::Str(table_type) = record.take_field() else {
+            let mut record = page.get_nth_record(n, &schema_table);
+            let Some(RType::Str(table_type)) = record.take_field("table_type") else {
                 panic!("Wrong type table type schema")
             };
-            let RType::Str(name) = record.take_field() else {
+            let Some(RType::Str(name)) = record.take_field("name") else {
                 panic!("Wrong type name schema")
             };
-            let RType::Str(tablename) = record.take_field() else {
+            let Some(RType::Str(tablename)) = record.take_field("tablename") else {
                 panic!("Wrong type tablename schema")
             };
-            let rootpage = Self::get_root_page(record.take_field());
-            let RType::Str(tabledef) = record.take_field() else {
+            let rootpage = Self::get_root_page(record.take_field("rootpage"));
+            let Some(RType::Str(tabledef)) = record.take_field("tabledef") else {
                 panic!("Wrong type tabledef")
             };
 
@@ -58,12 +59,13 @@ impl DBMetadata {
         }
     }
 
-    fn get_root_page(record: RType) -> usize {
+    fn get_root_page(record: Option<RType>) -> usize {
         match record {
-            RType::Null => panic!("Table parsing: this type cannot be used for root_page"),
-            RType::Num(num) => num as usize,
-            RType::Blob(_) => panic!("Table parsing: this type cannot be used for root_page"),
-            RType::Str(_) => panic!("Table parsing: this type cannot be used for root_page"),
+            Some(RType::Null) => panic!("Table parsing: this type cannot be used for root_page"),
+            Some(RType::Num(num)) => num as usize,
+            Some(RType::Blob(_)) => panic!("Table parsing: this type cannot be used for root_page"),
+            Some(RType::Str(_)) => panic!("Table parsing: this type cannot be used for root_page"),
+            None => panic!("Table parsing: this type cannot be used for root_page"),
         }
     }
 
