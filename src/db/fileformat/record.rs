@@ -33,9 +33,13 @@ impl Record {
         let mut fields: HashMap<String, RType> = HashMap::new();
         let mut cursor = Cursor::new(&buffer[record_start..]);
         for (i, col_serial_type) in header.col_serial_types.iter().enumerate() {
-            let field = Self::from_col_serial_type(&col_serial_type, &mut cursor);
             let key = table.get_col_name(i);
-            fields.insert(key, field?);
+            let field = if key.as_str() == "id" {
+                RType::Num(rowid.varint)
+            } else {
+                Self::from_col_serial_type(&col_serial_type, &mut cursor)?
+            };
+            fields.insert(key, field);
         }
         Ok(Self {
             cell_size: cell_size.varint as usize,

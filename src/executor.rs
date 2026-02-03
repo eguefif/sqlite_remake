@@ -65,7 +65,6 @@ impl Executor {
             return Ok(None);
         };
 
-        // TODO: we need to replace the ID by rowid when constructing record
         let page = self.db.get_page(table.get_root_page())?;
         let records = page.get_all_records(&table)?;
         let response = records
@@ -98,27 +97,18 @@ fn execute_function(page: &Page, func: &FuncCall) -> Vec<RType> {
 fn apply_where_clause(record: &Record, where_clause: &Where) -> bool {
     // For now, we assume there is only one identifier in the where clause
     if let Some(identifier) = where_clause.get_identifier() {
-        if identifier != "id" {
-            let identifier_value = record.get_column_value(identifier);
-            return where_clause.evaluate(Some(identifier_value));
-        }
-        return where_clause.evaluate(Some(&RType::Num(record.rowid as i64)));
+        let identifier_value = record.get_column_value(identifier);
+        return where_clause.evaluate(Some(identifier_value));
     };
     where_clause.evaluate(None)
 }
 
 fn apply_select_clause(mut record: Record, select: &SelectClause, table: &Table) -> Vec<RType> {
-    let record_id = RType::Num(record.rowid as i64);
     let mut selected_row = vec![];
     let col_names = get_selected_colname(select, table);
 
-    // TODO: when building record, should replace id with rowid
     for col_name in col_names {
-        if col_name == "id" {
-            selected_row.push(record_id.clone());
-        } else {
-            selected_row.push(record.take_field(col_name).unwrap())
-        }
+        selected_row.push(record.take_field(col_name).unwrap())
     }
     selected_row
 }
