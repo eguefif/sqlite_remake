@@ -66,14 +66,9 @@ impl Table {
         }
     }
 
-    pub fn get_col_index(&self, col_name: &str) -> usize {
-        self.cols_name
-            .iter()
-            .position(|name| col_name == name)
-            .unwrap()
-    }
     pub fn get_col_name(&self, index: usize) -> String {
         if self.cols_name.len() > index {
+            // TODO: Remove clone
             return self.cols_name[index].clone();
         }
         panic!("Table index: try to get out of range field")

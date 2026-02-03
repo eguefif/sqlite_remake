@@ -1,3 +1,4 @@
+use anyhow::Result;
 use std::fmt;
 
 use crate::executor::db_response::RType;
@@ -32,9 +33,9 @@ pub enum Token {
 }
 
 impl Token {
-    pub fn from_str(str: &str) -> Self {
+    pub fn from_str(str: &str) -> Result<Self> {
         let lower_str = str.to_lowercase();
-        match lower_str.as_str() {
+        let token = match lower_str.as_str() {
             "where" => Token::Where,
             "select" => Token::Select,
             "from" => Token::From,
@@ -57,17 +58,23 @@ impl Token {
             "-" => Token::Minus,
             "/" => Token::Div,
             _ => {
-                // TODO: handle error
-                if lower_str.chars().next().unwrap().is_numeric() {
-                    return Token::Num(lower_str.parse::<i64>().unwrap());
+                if lower_str
+                    .chars()
+                    .next()
+                    .expect("We know that there are at least one char")
+                    .is_numeric()
+                {
+                    Token::Num(lower_str.parse::<i64>()?)
                 } else {
                     if lower_str.starts_with("\'") {
-                        return Token::QIdent(str.trim_matches('\'').to_string());
+                        Token::QIdent(str.trim_matches('\'').to_string())
+                    } else {
+                        Token::Ident(lower_str)
                     }
-                    return Token::Ident(lower_str);
                 }
             }
-        }
+        };
+        Ok(token)
     }
 
     pub fn into_rtype(&self) -> RType {

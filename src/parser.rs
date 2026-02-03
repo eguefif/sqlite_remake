@@ -45,7 +45,7 @@ impl<'a> Parser<'a> {
     //// if not, returns an error
     //// If there is no next token, return None
     fn expect_token(&mut self, expected_token: Token) -> Result<Token> {
-        if let Some(next) = self.tokenizer.next() {
+        if let Some(Ok(next)) = self.tokenizer.next() {
             if next == expected_token {
                 return Ok(next);
             } else {
@@ -64,7 +64,7 @@ impl<'a> Parser<'a> {
     /// or EOF
     #[allow(dead_code)]
     fn expect_token_peek(&mut self, expected_token: Token) -> Result<()> {
-        if let Some(peeked) = self.tokenizer.peek() {
+        if let Some(Ok(peeked)) = self.tokenizer.peek() {
             if *peeked == expected_token {
                 return Ok(());
             } else {
@@ -101,7 +101,7 @@ impl<'a> Parser<'a> {
     fn parse_select_values(&mut self) -> Result<Vec<SelectItem>> {
         let mut select_items = vec![];
         loop {
-            let Some(next) = self.tokenizer.next() else {
+            let Some(Ok(next)) = self.tokenizer.next() else {
                 return Err(anyhow!("Parsing Select Clause: expect token got EOF"));
             };
             match next {
@@ -155,7 +155,7 @@ impl<'a> Parser<'a> {
         let next = self
             .tokenizer
             .next()
-            .expect("We know from the last if statement that there is next token");
+            .expect("We know from the last if statement that there is next token")?;
 
         if let Token::From = next {
             self.parse_from(select_statement)
@@ -165,7 +165,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_from(&mut self, mut select_statement: SelectStatement) -> Result<SelectStatement> {
-        let Some(next) = self.tokenizer.next() else {
+        let Some(Ok(next)) = self.tokenizer.next() else {
             return Err(anyhow!("Parsing: expected table in FROM statement got EOF",));
         };
         if let Token::Ident(value) = next {
@@ -177,7 +177,7 @@ impl<'a> Parser<'a> {
     }
 
     fn is_statement_end(&mut self) -> bool {
-        if let Some(peek) = self.tokenizer.peek() {
+        if let Some(Ok(peek)) = self.tokenizer.peek() {
             match peek {
                 Token::SemiColon => {
                     self.tokenizer.next();
@@ -199,7 +199,7 @@ impl<'a> Parser<'a> {
         let next = self
             .tokenizer
             .next()
-            .expect("We know from the last if statement that there is next token");
+            .expect("We know from the last if statement that there is next token")?;
 
         if let Token::Where = next {
             self.parse_where(select_statement)
@@ -209,15 +209,15 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_where(&mut self, mut select_statement: SelectStatement) -> Result<SelectStatement> {
-        let Some(left) = self.tokenizer.next() else {
+        let Some(Ok(left)) = self.tokenizer.next() else {
             return Err(anyhow!("Parsing:: expect where identifier left"));
         };
 
-        let Some(operator) = self.tokenizer.next() else {
+        let Some(Ok(operator)) = self.tokenizer.next() else {
             return Err(anyhow!("Parsing:: expect operator token"));
         };
 
-        let Some(right) = self.tokenizer.next() else {
+        let Some(Ok(right)) = self.tokenizer.next() else {
             return Err(anyhow!("Parsing:: expect where identifier right"));
         };
         select_statement.where_clause = Some(Where::new(left, operator, right)?);
@@ -232,7 +232,7 @@ impl Iterator for Parser<'_> {
     // Parse the next query.
     // We handle only one statement for now, the select statement.
     fn next(&mut self) -> Option<Self::Item> {
-        let Some(token) = self.tokenizer.next() else {
+        let Some(Ok(token)) = self.tokenizer.next() else {
             return None;
         };
         let stmt = match token {

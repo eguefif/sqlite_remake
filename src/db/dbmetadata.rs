@@ -21,7 +21,7 @@ impl DBMetadata {
         let mut schema: SchemaTable = HashMap::new();
         let schema_table = Table::schema_table();
         for n in 0..page.get_record_number() {
-            let mut record = page.get_nth_record(n, &schema_table);
+            let mut record = page.get_nth_record(n, &schema_table)?;
             let Some(RType::Str(table_type)) = record.take_field("table_type") else {
                 return Err(anyhow!("Wrong type table type schema"));
             };
@@ -53,8 +53,14 @@ impl DBMetadata {
     }
 
     fn trim_column_def(value: &str) -> String {
+        // NOTE: Why did I do that ?
         if value.contains(' ') {
-            value.split(' ').next().unwrap().trim().to_string()
+            value
+                .split(' ')
+                .next()
+                .expect("We know that there is space")
+                .trim()
+                .to_string()
         } else {
             value.trim().to_string()
         }

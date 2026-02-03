@@ -1,3 +1,4 @@
+use anyhow::Result;
 use std::iter::{Iterator, Peekable};
 use std::str::Chars;
 
@@ -17,13 +18,16 @@ impl<'a> Tokenizer<'a> {
     }
 
     // Returns the next token without consuming it
-    pub fn peek(&mut self) -> Option<&Token> {
+    pub fn peek(&mut self) -> Option<Result<&Token>> {
+        // TODO: Refactor the peek
         if let Some(ref peeked) = self.peeked {
-            return Some(peeked);
+            return Some(Ok(peeked));
         }
-        if let Some(next) = self.next() {
+        if let Some(Ok(next)) = self.next() {
             self.peeked = Some(next);
-            return self.peeked.as_ref();
+        }
+        if let Some(ref peeked) = self.peeked {
+            return Some(Ok(peeked));
         }
 
         None
@@ -31,83 +35,79 @@ impl<'a> Tokenizer<'a> {
 
     fn trim_space(&mut self) {
         loop {
-            let Some(peek) = self.buffer.peek() else {
-                break;
-            };
-            if *peek != ' ' {
-                break;
+            match self.buffer.peek() {
+                Some(' ') => {
+                    self.buffer.next();
+                }
+                Some(_) => break,
+                _ => break,
             }
-            self.buffer.next();
         }
     }
 }
 
 impl Iterator for Tokenizer<'_> {
-    type Item = Token;
+    type Item = Result<Token>;
 
     // Returns the next token, consuming it
     fn next(&mut self) -> Option<Self::Item> {
         // Return peeked value saved when used the method Tokenizer.peek()
         if let Some(peeked) = self.peeked.take() {
-            return Some(peeked);
+            return Some(Ok(peeked));
         }
         if let None = self.buffer.peek() {
             return None;
         }
         self.trim_space();
         let mut next = self.buffer.next().unwrap();
-        match next {
-            ';' => return Some(Token::SemiColon),
-            ',' => return Some(Token::Coma),
-            '(' => return Some(Token::LParen),
-            ')' => return Some(Token::RParen),
-            '+' => return Some(Token::Plus),
-            '-' => return Some(Token::Minus),
-            '/' => return Some(Token::Div),
-            '*' => return Some(Token::Star),
-            '=' => return Some(Token::Equal),
+        let token = match next {
+            ';' => Token::from_str(";"),
+            ',' => Token::from_str(","),
+            '(' => Token::from_str("()"),
+            ')' => Token::from_str(")"),
+            '+' => Token::from_str("+"),
+            '-' => Token::from_str("-"),
+            '/' => Token::from_str("/"),
+            '*' => Token::from_str("*"),
+            '=' => Token::from_str("="),
             '!' => {
-                if let Some(peek) = self.buffer.peek() {
-                    if *peek == '=' {
-                        self.buffer.next();
-                        return Some(Token::NotEq);
-                    }
+                if let Some('=') = self.buffer.peek() {
+                    self.buffer.next();
+                    Token::from_str("!=")
+                } else {
+                    Ok(Token::Illegal("!".to_string()))
                 }
-                return Some(Token::Illegal("!".to_string()));
             }
             '>' => {
-                if let Some(peek) = self.buffer.peek() {
-                    if *peek == '=' {
-                        self.buffer.next();
-                        return Some(Token::GTEQ);
-                    }
+                if let Some('=') = self.buffer.peek() {
+                    self.buffer.next();
+                    Token::from_str(">=")
+                } else {
+                    Token::from_str(">")
                 }
-                return Some(Token::GT);
             }
             '<' => {
-                if let Some(peek) = self.buffer.peek() {
-                    if *peek == '=' {
-                        self.buffer.next();
-                        return Some(Token::LTEQ);
-                    }
+                if let Some('=') = self.buffer.peek() {
+                    self.buffer.next();
+                    Token::from_str("<=")
+                } else {
+                    Token::from_str("<")
                 }
-                return Some(Token::LT);
             }
             '\'' => {
                 let mut token_qident = String::new();
                 token_qident.push(next);
                 loop {
-                    let Some(peek) = self.buffer.peek() else {
-                        break;
-                    };
-                    if *peek == '\'' {
-                        token_qident.push(self.buffer.next().unwrap());
-                        break;
+                    match self.buffer.next() {
+                        Some('\'') => {
+                            token_qident.push('\'');
+                            break;
+                        }
+                        Some(next) => token_qident.push(next),
+                        None => break,
                     }
-                    let next = self.buffer.next().unwrap();
-                    token_qident.push(next);
                 }
-                return Some(Token::from_str(&token_qident));
+                Token::from_str(&token_qident)
             }
             _ => {
                 let mut token_str = String::new();
@@ -124,11 +124,12 @@ impl Iterator for Tokenizer<'_> {
                         }
                         break;
                     }
-                    next = self.buffer.next().unwrap();
+                    next = self.buffer.next().expect("We just peek before");
                 }
-                return Some(Token::from_str(&token_str));
+                Token::from_str(&token_str)
             }
-        }
+        };
+        Some(token)
     }
 }
 
@@ -161,8 +162,7 @@ mod tests {
         ];
 
         for (expected, token) in expected_tokens.into_iter().zip(tokenizer) {
-            println!("|{}|", token);
-            assert_eq!(token, expected);
+            assert_eq!(token.unwrap(), expected);
         }
     }
 
@@ -181,8 +181,7 @@ mod tests {
         ];
 
         for (expected, token) in expected_tokens.into_iter().zip(tokenizer) {
-            println!("|{}|", token);
-            assert_eq!(token, expected);
+            assert_eq!(token.unwrap(), expected);
         }
     }
 
@@ -206,7 +205,7 @@ mod tests {
         ];
 
         for (expected, token) in expected_tokens.into_iter().zip(tokenizer) {
-            assert_eq!(token, expected);
+            assert_eq!(token.unwrap(), expected);
         }
     }
 
@@ -215,7 +214,7 @@ mod tests {
         let tokenizer =
             Tokenizer::new("SELECT name, color, number FROM apples WHERE name = 'hey';");
 
-        assert_eq!(tokenizer.collect::<Vec<Token>>().len(), 13);
+        assert_eq!(tokenizer.collect::<Vec<_>>().len(), 13);
     }
 
     #[test]
@@ -256,7 +255,7 @@ mod tests {
         ];
 
         for (expected, token) in expected_tokens.into_iter().zip(tokenizer) {
-            assert_eq!(token, expected);
+            assert_eq!(token.unwrap(), expected);
         }
     }
 
@@ -282,7 +281,22 @@ mod tests {
         ];
 
         for (expected, token) in expected_tokens.into_iter().zip(tokenizer) {
-            assert_eq!(token, expected);
+            assert_eq!(token.unwrap(), expected);
+        }
+    }
+
+    #[test]
+    fn it_should_tokenize_token_qident() {
+        let tokenizer = Tokenizer::new("name = 'hello world'");
+
+        let expected_tokens = [
+            Token::Ident("name".to_string()),
+            Token::Equal,
+            Token::QIdent("hello world".to_string()),
+        ];
+
+        for (expected, token) in expected_tokens.into_iter().zip(tokenizer) {
+            assert_eq!(token.unwrap(), expected);
         }
     }
 }

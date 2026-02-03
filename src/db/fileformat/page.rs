@@ -117,14 +117,14 @@ impl Page {
     }
 
     /// This function is used to iterate over records in a page
-    pub fn get_nth_record(&self, index: usize, schema_table: &Table) -> Record {
+    pub fn get_nth_record(&self, index: usize, schema_table: &Table) -> Result<Record> {
         let cell_array_offset = index * 2;
         let cell_array = self.get_cell_pointer_array();
         let mut cursor = Cursor::new(&cell_array[cell_array_offset..]);
-        let offset = cursor.read_u16::<BigEndian>().unwrap() as usize;
+        let offset = cursor.read_u16::<BigEndian>()? as usize;
         let record = Record::new(&self.get_slice(offset as usize, None), schema_table)
             .expect("Error: indexing record, file parsing failed");
-        record
+        Ok(record)
     }
 }
 

@@ -9,7 +9,7 @@ use crate::parser::identifier::{Identifier, VType};
 use crate::parser::select::{SelectClause, SelectItem};
 use crate::parser::where_clause::Where;
 use crate::parser::{Parser, select::SelectStatement, statement::Statement};
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 
 pub mod db_response;
 
@@ -86,7 +86,7 @@ impl Executor {
                 }
             })
             .map(|record| apply_select_clause(record, &query.select_clause, &table))
-            .collect();
+            .collect::<Result<Response>>()?;
 
         if let Some(func) = query.select_clause.get_function() {
             Ok(Some(vec![execute_function(&page, func)]))
@@ -112,14 +112,22 @@ fn apply_where_clause(record: &Record, where_clause: &Where) -> bool {
     where_clause.evaluate(None)
 }
 
-fn apply_select_clause(mut record: Record, select: &SelectClause, table: &Table) -> Vec<RType> {
+fn apply_select_clause(
+    mut record: Record,
+    select: &SelectClause,
+    table: &Table,
+) -> Result<Vec<RType>> {
     let mut selected_row = vec![];
     let col_names = get_selected_colname(select, table);
 
     for col_name in col_names {
-        selected_row.push(record.take_field(col_name).unwrap())
+        if let Some(field) = record.take_field(col_name) {
+            selected_row.push(field)
+        } else {
+            return Err(anyhow!("Select clause: invalid columna name: {}", col_name));
+        }
     }
-    selected_row
+    Ok(selected_row)
 }
 
 fn get_selected_colname<'a>(select_clause: &'a SelectClause, table: &'a Table) -> Vec<&'a str> {
