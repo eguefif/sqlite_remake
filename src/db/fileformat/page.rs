@@ -20,12 +20,6 @@ use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
 use std::io::Cursor;
 
-// TODO: handle other page types using a trait
-// The trait should provides methods to :
-//   - get the number of records
-//   - get a page
-//  We will need a page factory that take a buffer and a page_number
-
 pub struct Page {
     pub buffer: Vec<u8>,
     pub page_number: usize,

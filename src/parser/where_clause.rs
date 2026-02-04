@@ -26,8 +26,6 @@ impl fmt::Display for Operator {
     }
 }
 
-// TODO: refactor for a more complete way of parsing where
-// Introduce the concept of condition
 #[derive(Debug)]
 pub struct Where {
     left: Token,

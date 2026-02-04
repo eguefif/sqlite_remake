@@ -1,4 +1,4 @@
-//! TODO: Add documentation
+//! Api to execute a raw sql string or a Sqlite special command
 use crate::db::DB;
 use crate::db::fileformat::page::Page;
 use crate::db::fileformat::record::Record;

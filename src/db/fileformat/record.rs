@@ -73,7 +73,7 @@ impl Record {
             ColSerialType::Vf64 => RType::Num(cursor.read_f64::<BigEndian>()? as i64),
             ColSerialType::V0 => RType::Num(0),
             ColSerialType::V1 => RType::Num(1),
-            ColSerialType::Variable => todo!("TODO: ColSeriableType variable"),
+            ColSerialType::Variable => todo!("ColSeriableType variable"),
             ColSerialType::Blob(size) => {
                 let mut blob = Vec::new();
                 blob.resize(*size, 0);

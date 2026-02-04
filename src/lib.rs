@@ -4,6 +4,9 @@
 //!
 //!
 //! There are three components:
+//! The [executor] module is responsible to take a query and return a response.
+//! The [db] module contains the sqlite file representation.
+//! The [parser] is used by the [executor] to get a query object.
 //!
 //! The [db] module contains:
 //! * [DB](db::DB) struct that represents the database and provide methods to interact with it.
@@ -20,10 +23,15 @@
 //!
 //! # Example
 //! ```no_run
-//!    let db = DB::new("sample.db")?;
+//!    fn main() {
+//!    let db = match DB::new("sample.db") {
+//!        Ok(db) => db,
+//!        Err(error) => eprintln!("Impossible to read database metadata: {}", error),
+//!    };
 //!    let mut executor = Executor::new(db);
-//!    if let Some(response) = executor.execute(command)? {
+//!    if let Some(response) = executor.execute(command).unwrap() {
 //!        display_response(&response);
+//!    }
 //!    }
 //!```
 
