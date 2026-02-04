@@ -96,7 +96,7 @@ impl Page {
         }
     }
 
-    pub fn get_all_records(&self, table: &Table) -> Result<Vec<Record>> {
+    pub fn get_all_records<'a>(&self, table: &'a Table) -> Result<Vec<Record<'a>>> {
         let mut rows = vec![];
         let cell_array = self.get_cell_pointer_array();
         let mut cursor = Cursor::new(cell_array);
@@ -111,7 +111,7 @@ impl Page {
     }
 
     /// This function is used to iterate over records in a page
-    pub fn get_nth_record(&self, index: usize, schema_table: &Table) -> Result<Record> {
+    pub fn get_nth_record<'a>(&self, index: usize, schema_table: &'a Table) -> Result<Record<'a>> {
         let cell_array_offset = index * 2;
         let cell_array = self.get_cell_pointer_array();
         let mut cursor = Cursor::new(&cell_array[cell_array_offset..]);

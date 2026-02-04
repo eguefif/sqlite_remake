@@ -10,16 +10,16 @@ use std::io::{Cursor, Read};
 
 #[allow(unused)]
 #[derive(Debug)]
-pub struct Record {
+pub struct Record<'a> {
     cell_size: usize,
     pub rowid: usize,
     header: RecordHeader,
     record_start: usize, // When actual record start, after cell header + record header + rowid
-    fields: HashMap<String, RType>,
+    fields: HashMap<&'a str, RType>,
 }
 
-impl Record {
-    pub fn new(buffer: &[u8], table: &Table) -> Result<Self> {
+impl<'a> Record<'a> {
+    pub fn new(buffer: &[u8], table: &'a Table) -> Result<Self> {
         // Parsing cell Header
         let cell_size = Varint::new(buffer);
         let rowid = Varint::new(&buffer[cell_size.size..]);
@@ -30,11 +30,11 @@ impl Record {
 
         // Parsing record
         let record_start = cell_size.size + rowid.size + header.size;
-        let mut fields: HashMap<String, RType> = HashMap::new();
+        let mut fields: HashMap<&str, RType> = HashMap::new();
         let mut cursor = Cursor::new(&buffer[record_start..]);
         for (i, col_serial_type) in header.col_serial_types.iter().enumerate() {
-            let key = table.get_col_name(i);
-            let field = if key.as_str() == "id" {
+            let key = table.get_column_name(i);
+            let field = if key == "id" {
                 RType::Num(rowid.varint)
             } else {
                 Self::from_col_serial_type(&col_serial_type, &mut cursor)?
@@ -50,7 +50,7 @@ impl Record {
         })
     }
 
-    pub fn take_fields(&mut self) -> HashMap<String, RType> {
+    pub fn take_fields(&mut self) -> HashMap<&str, RType> {
         std::mem::take(&mut self.fields)
     }
 

@@ -29,6 +29,7 @@ impl Executor {
     /// Returns None for special commands, or Some(Vec<(Query, Response)) for SQL queries.
     /// Response is a Vec<Vec<[Rtype](crate::executor::db_response)>>
     pub fn execute(&mut self, command: &str) -> Result<Option<Vec<(Statement, Response)>>> {
+        // TODO: Check if we handle error correctly
         match command {
             ".dbinfo" => Ok(Some(vec![(
                 Statement::Command(command.to_string()),
@@ -69,6 +70,10 @@ impl Executor {
         }
     }
 
+    // NOTE: about lifetime here.
+    // Table has to live longer than each indivual records. Each records contains a
+    // HashMap of columns. Keys are &str to the table definition column's name.
+    // Records and Table lives only in this function scope.
     fn execute_select_statement(&mut self, query: &SelectStatement) -> Result<Option<Response>> {
         let Some(table) = self.db.take_table(&query.from_clause) else {
             return Ok(None);

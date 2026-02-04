@@ -66,12 +66,8 @@ impl Table {
         }
     }
 
-    pub fn get_col_name(&self, index: usize) -> String {
-        if self.cols_name.len() > index {
-            // TODO: Remove clone
-            return self.cols_name[index].clone();
-        }
-        panic!("Table index: try to get out of range field")
+    pub fn get_column_name(&self, index: usize) -> &str {
+        return &self.cols_name[index];
     }
 
     pub fn get_root_page(&self) -> usize {
