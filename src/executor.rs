@@ -7,6 +7,7 @@ use crate::executor::db_response::{RType, Response};
 use crate::parser::function::FuncCall;
 use crate::parser::identifier::{Identifier, VType};
 use crate::parser::select::{SelectClause, SelectItem};
+use crate::parser::token::Command;
 use crate::parser::where_clause::Where;
 use crate::parser::{Parser, select::SelectStatement, statement::Statement};
 use anyhow::{Result, anyhow};
@@ -28,45 +29,25 @@ impl Executor {
     /// * a SQL query.
     /// Returns None for special commands, or Some(Vec<(Query, Response)) for SQL queries.
     /// Response is a Vec<Vec<[Rtype](crate::executor::db_response)>>
-    pub fn execute(&mut self, command: &str) -> Result<Option<Vec<(Statement, Response)>>> {
-        // TODO: Check if we handle error correctly
-        match command {
-            ".dbinfo" => Ok(Some(vec![(
-                Statement::Command(command.to_string()),
-                self.db.metadata.get_metadata(),
-            )])),
-            ".tables" => Ok(Some(vec![(
-                Statement::Command(command.to_string()),
-                self.db.metadata.get_table_names(),
-            )])),
-            _ => self.execute_queries(command),
-        }
-    }
-
-    fn execute_queries(&mut self, queries: &str) -> Result<Option<Vec<(Statement, Response)>>> {
-        let parser = Parser::new(queries);
+    pub fn execute(&mut self, command: &str) -> Result<Vec<(Statement, Response)>> {
+        let parser = Parser::new(command);
         let mut results: Vec<(Statement, Response)> = vec![];
         for query in parser {
             let statement = query?;
             let result = self.execute_query(&statement)?;
             if let Some(result) = result {
                 results.push((statement, result));
-            } else {
-                return Ok(None);
             }
         }
 
-        Ok(Some(results))
+        Ok(results)
     }
 
     fn execute_query(&mut self, query: &Statement) -> Result<Option<Response>> {
         match query {
             Statement::Select(select_statement) => self.execute_select_statement(select_statement),
-            _ => {
-                todo!(
-                    "Refactor this part: it is because of the return type of execute which needs Statement. I added a Statement Command for .dbinfo"
-                )
-            }
+            Statement::Command(Command::DBinfo) => self.db.metadata.get_metadata(),
+            Statement::Command(Command::Tables) => self.db.metadata.get_metadata(),
         }
     }
 

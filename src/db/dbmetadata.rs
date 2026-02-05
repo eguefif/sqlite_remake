@@ -96,7 +96,7 @@ impl DBMetadata {
         self.schema.remove(tablename)
     }
 
-    pub fn get_metadata(&self) -> Response {
+    pub fn get_metadata(&self) -> Result<Option<Response>> {
         let page_size = vec![
             RType::Str("database page size:".to_string()),
             RType::Num(self.get_page_size() as i64),
@@ -105,7 +105,7 @@ impl DBMetadata {
             RType::Str("number of tables".to_string()),
             RType::Num(self.get_number_of_table() as i64),
         ];
-        vec![page_size, table_number]
+        Ok(Some(vec![page_size, table_number]))
     }
 
     fn get_page_size(&self) -> u16 {
@@ -123,12 +123,12 @@ impl DBMetadata {
     }
 
     // Print tablenames in alphabetical order
-    pub fn get_table_names(&self) -> Response {
+    pub fn get_table_names(&self) -> Result<Option<Response>> {
         let mut tablenames = Vec::new();
         for (tablename, _) in self.schema.iter() {
             tablenames.push(RType::Str(tablename.to_string()))
         }
         tablenames.sort();
-        vec![tablenames]
+        Ok(Some(vec![tablenames]))
     }
 }

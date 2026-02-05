@@ -109,6 +109,18 @@ impl Iterator for Tokenizer<'_> {
                 }
                 Token::from_str(&token_qident)
             }
+            '.' => {
+                let mut command = ".".to_string();
+                loop {
+                    if let Some(next) = self.buffer.next() {
+                        command.push(next);
+                    } else {
+                        break;
+                    }
+                }
+                let command = command.trim();
+                Token::from_str(&command)
+            }
             _ => {
                 let mut token_str = String::new();
                 loop {

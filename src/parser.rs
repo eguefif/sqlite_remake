@@ -237,6 +237,7 @@ impl Iterator for Parser<'_> {
         };
         let stmt = match token {
             Token::Select => self.parse_select_statement(token),
+            Token::Command(cmd) => Ok(Statement::Command(cmd)),
             _ => todo!("Do update and insert ..."),
         };
 

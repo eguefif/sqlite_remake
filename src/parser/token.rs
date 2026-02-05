@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use std::fmt;
 
 use crate::executor::db_response::RType;
@@ -30,6 +30,7 @@ pub enum Token {
     Plus,
     Minus,
     Div,
+    Command(Command),
 }
 
 impl Token {
@@ -58,13 +59,15 @@ impl Token {
             "-" => Token::Minus,
             "/" => Token::Div,
             _ => {
-                if lower_str
+                let first_char = lower_str
                     .chars()
                     .next()
-                    .expect("We know that there are at least one char")
-                    .is_numeric()
-                {
+                    .expect("We know that there are at least one char");
+                if first_char.is_numeric() {
                     Token::Num(lower_str.parse::<i64>()?)
+                } else if first_char == '.' {
+                    let cmd = Command::from_str(&lower_str)?;
+                    Token::Command(cmd)
                 } else {
                     if lower_str.starts_with("\'") {
                         Token::QIdent(str.trim_matches('\'').to_string())
@@ -114,6 +117,33 @@ impl fmt::Display for Token {
             Token::Minus => write!(f, "-"),
             Token::Div => write!(f, "/"),
             Token::Illegal(value) => write!(f, "Illegal token: {}", value),
+            Token::Command(command) => write!(f, "Command: {}", command),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Command {
+    DBinfo,
+    Tables,
+}
+
+impl Command {
+    pub fn from_str(command: &str) -> Result<Self> {
+        let command = match command {
+            ".dbinfo" => Command::DBinfo,
+            ".tables" => Command::Tables,
+            _ => return Err(anyhow!("{}: command does not exists", command)),
+        };
+        Ok(command)
+    }
+}
+
+impl fmt::Display for Command {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Command::DBinfo => write!(f, ".dbinfo"),
+            Command::Tables => write!(f, ".tables"),
         }
     }
 }

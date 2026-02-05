@@ -21,8 +21,9 @@ fn main() -> Result<()> {
         Err(error) => bail!("Impossible to read database metadata: {}", error),
     };
     let mut executor = Executor::new(db);
-    if let Some(response) = executor.execute(command)? {
-        display_response(&response);
+    match executor.execute(command) {
+        Ok(response) => display_response(&response),
+        Err(e) => eprintln!("Error: {}", e),
     }
 
     Ok(())

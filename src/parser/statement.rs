@@ -9,13 +9,13 @@
 //! * From
 //! * Where
 //!
-use crate::parser::select::SelectStatement;
+use crate::parser::{select::SelectStatement, token::Command};
 use std::fmt;
 
 #[derive(Debug)]
 pub enum Statement {
     Select(SelectStatement),
-    Command(String),
+    Command(Command),
 }
 
 impl fmt::Display for Statement {
