@@ -1,6 +1,6 @@
 //! Api to execute a raw sql string or a Sqlite special command
 use crate::db::DB;
-use crate::db::fileformat::btree_leaf_page::BTreeLeafPage;
+use crate::db::fileformat::page::Page;
 use crate::db::fileformat::record::Record;
 use crate::db::table::Table;
 use crate::executor::db_response::{RType, Response};
@@ -82,7 +82,7 @@ impl Executor {
     }
 }
 
-fn execute_function(page: &BTreeLeafPage, func: &FuncCall) -> Vec<RType> {
+fn execute_function(page: &Page, func: &FuncCall) -> Vec<RType> {
     match func.function_name.as_str() {
         "count" => vec![RType::Num(page.get_record_number() as i64)],
         _ => vec![],

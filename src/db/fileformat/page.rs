@@ -20,7 +20,7 @@ use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
 use std::io::Cursor;
 
-pub struct BTreeLeafPage {
+pub struct Page {
     buffer: Vec<u8>,
     pub page_number: usize,
 
@@ -32,7 +32,7 @@ pub struct BTreeLeafPage {
     pub right_most_pointer: usize,
 }
 
-impl BTreeLeafPage {
+impl Page {
     // Creates a new sqlite page
     // See documentation for the why https://www.sqlite.org/fileformat.html
     // THe first page contains the file header that measures 100 bytes.
