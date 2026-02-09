@@ -5,7 +5,7 @@
 //! * [dbmetadata] contains all the information on the sqlite database
 //!
 use crate::db::dbmetadata::DBMetadata;
-use crate::db::fileformat::page::Page;
+use crate::db::fileformat::btree_leaf_page::BTreeLeafPage;
 use crate::db::table::Table;
 use anyhow::Result;
 use std::fs::File;
@@ -33,7 +33,7 @@ impl DB {
         let mut buffer = Vec::new();
         buffer.resize(page_size as usize, 0);
         buf_reader.read_exact(&mut buffer)?;
-        let page = Page::new(buffer, 1)?;
+        let page = BTreeLeafPage::new(buffer, 1)?;
         let metadata = DBMetadata::new(page)?;
 
         Ok(Self {
@@ -54,13 +54,13 @@ impl DB {
         self.metadata.take_table(tablename)
     }
 
-    pub fn get_page(&mut self, root_page: usize) -> Result<Page> {
+    pub fn get_page(&mut self, root_page: usize) -> Result<BTreeLeafPage> {
         let mut page_buffer = self.get_new_page_buffer();
         // Page are numbered from 1, we need to subtract 1 to get the offset
         let offset = ((root_page - 1) * self.page_size) as u64;
         self.buf_reader.seek(SeekFrom::Start(offset))?;
         self.buf_reader.read_exact(&mut page_buffer)?;
-        Page::new(page_buffer, root_page)
+        BTreeLeafPage::new(page_buffer, root_page)
     }
 
     // Utility function that is used to provide a buffer

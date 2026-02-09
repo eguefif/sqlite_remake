@@ -1,23 +1,23 @@
 //! This module offer an abstraction over the sqlite database metadata
 //!
-use crate::db::fileformat::page::Page;
+use crate::db::fileformat::btree_leaf_page::BTreeLeafPage;
 use crate::db::table::{SchemaTable, Table};
 use crate::executor::db_response::{RType, Response};
 use anyhow::{Result, anyhow};
 use std::collections::HashMap;
 
 pub struct DBMetadata {
-    page: Page,
+    page: BTreeLeafPage,
     pub schema: SchemaTable,
 }
 
 impl DBMetadata {
-    pub fn new(page: Page) -> Result<Self> {
+    pub fn new(page: BTreeLeafPage) -> Result<Self> {
         let schema = Self::create_table_schema(&page)?;
         Ok(Self { page, schema })
     }
 
-    fn create_table_schema(page: &Page) -> Result<SchemaTable> {
+    fn create_table_schema(page: &BTreeLeafPage) -> Result<SchemaTable> {
         let mut schema: SchemaTable = HashMap::new();
         let schema_table = Table::schema_table();
         for n in 0..page.get_record_number() {

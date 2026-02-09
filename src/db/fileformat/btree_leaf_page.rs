@@ -20,27 +20,45 @@ use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
 use std::io::Cursor;
 
-pub struct Page {
-    pub buffer: Vec<u8>,
+pub struct BTreeLeafPage {
+    buffer: Vec<u8>,
     pub page_number: usize,
-    pub page_header: PageHeader,
+
+    pub btree_type: BTreeType,
+    pub start_free: usize,
+    pub cell_number: usize,
+    pub start_content: usize,
+    pub frag_number: u8,
+    pub right_most_pointer: usize,
 }
 
-impl Page {
+impl BTreeLeafPage {
     // Creates a new sqlite page
     // See documentation for the why https://www.sqlite.org/fileformat.html
     // THe first page contains the file header that measures 100 bytes.
     pub fn new(buffer: Vec<u8>, page_number: usize) -> Result<Self> {
-        let page_header;
-        if page_number == 1 {
-            page_header = PageHeader::new(&buffer[100..])?;
+        let mut cursor = if page_number == 1 {
+            Cursor::new(&buffer[100..])
         } else {
-            page_header = PageHeader::new(&buffer)?;
-        }
+            Cursor::new(&buffer[..])
+        };
+
+        let btree_type = BTreeType::new(cursor.read_u8()?);
+        let start_free = cursor.read_u16::<BigEndian>()? as usize;
+        let cell_number = cursor.read_u16::<BigEndian>()? as usize;
+        let start_content = cursor.read_u16::<BigEndian>()? as usize;
+        let frag_number = cursor.read_u8()?;
+        let right_most_pointer = cursor.read_u16::<BigEndian>()? as usize;
+
         Ok(Self {
             buffer,
             page_number,
-            page_header,
+            btree_type,
+            start_free,
+            cell_number,
+            start_content,
+            frag_number,
+            right_most_pointer,
         })
     }
 
@@ -70,15 +88,15 @@ impl Page {
     /// A Cell contains a record, therefore, the number of record
     /// is the number of cells in the page
     pub fn get_record_number(&self) -> usize {
-        self.page_header.cell_number
+        self.cell_number
     }
 
     /// cell_pointer_array are pointers to page cells
     /// cells are records
     pub fn get_cell_pointer_array(&self) -> &[u8] {
         let buffer = self.get_page_buffer();
-        let cell_number = self.page_header.cell_number;
-        if self.page_header.btree_type == BTreeType::InteriorPage {
+        let cell_number = self.cell_number;
+        if self.btree_type == BTreeType::InteriorPage {
             return &buffer[12..12 + cell_number as usize * 2];
         } else {
             return &buffer[8..8 + cell_number as usize * 2];
@@ -148,28 +166,5 @@ impl BTreeType {
             0x0d => BTreeType::LeafPage,
             _ => panic!("Error: Number type invalid"),
         }
-    }
-}
-
-pub struct PageHeader {
-    pub btree_type: BTreeType,
-    pub start_free: usize,
-    pub cell_number: usize,
-    pub start_content: usize,
-    pub frag_number: u8,
-    pub right_most_pointer: usize,
-}
-
-impl PageHeader {
-    fn new(buffer: &[u8]) -> Result<Self> {
-        let mut cursor = Cursor::new(buffer);
-        Ok(PageHeader {
-            btree_type: BTreeType::new(cursor.read_u8()?),
-            start_free: cursor.read_u16::<BigEndian>()? as usize,
-            cell_number: cursor.read_u16::<BigEndian>()? as usize,
-            start_content: cursor.read_u16::<BigEndian>()? as usize,
-            frag_number: cursor.read_u8()?,
-            right_most_pointer: cursor.read_u16::<BigEndian>()? as usize,
-        })
     }
 }

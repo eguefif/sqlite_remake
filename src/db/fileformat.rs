@@ -8,6 +8,6 @@
 //! * [page] A module that offer a way to read page in the db
 //! * [record] A module that allows to read one record
 //! * [types]  Type associated of the fileformat
-pub mod page;
+pub mod btree_leaf_page;
 pub mod record;
 pub mod types;
