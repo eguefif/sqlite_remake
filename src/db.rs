@@ -5,7 +5,10 @@
 //! * [dbmetadata] contains all the information on the sqlite database
 //!
 use crate::db::dbmetadata::DBMetadata;
+use crate::db::fileformat::PageType;
+use crate::db::fileformat::interior_page::InteriorPage;
 use crate::db::fileformat::page::Page;
+use crate::db::fileformat::record::Record;
 use crate::db::table::Table;
 use anyhow::Result;
 use std::fs::File;
@@ -54,13 +57,47 @@ impl DB {
         self.metadata.take_table(tablename)
     }
 
-    pub fn get_page(&mut self, root_page: usize) -> Result<Page> {
+    pub fn seq_scan<'a>(&mut self, table: &'a Table) -> Result<Vec<Record<'a>>> {
+        let page = self.get_page(table.get_root_page())?;
+
+        match page {
+            PageType::InteriorPage(page) => self.traverse_btree(page, table),
+            PageType::Page(page) => page.get_all_records(table),
+        }
+    }
+
+    fn traverse_btree<'a>(
+        &mut self,
+        page: InteriorPage,
+        table: &'a Table,
+    ) -> Result<Vec<Record<'a>>> {
+        let mut retval = vec![];
+        let pointers = page.get_all_pointers()?;
+        for pointer in pointers {
+            let page = self.get_page(pointer)?;
+            match page {
+                PageType::Page(page) => {
+                    let mut records = page.get_all_records(table)?;
+                    retval.append(&mut records)
+                }
+                PageType::InteriorPage(page) => {
+                    let mut records = self.traverse_btree(page, table)?;
+                    retval.append(&mut records)
+                }
+            }
+        }
+        Ok(retval)
+    }
+
+    pub fn get_page(&mut self, page_number: usize) -> Result<PageType> {
         let mut page_buffer = self.get_new_page_buffer();
         // Page are numbered from 1, we need to subtract 1 to get the offset
-        let offset = ((root_page - 1) * self.page_size) as u64;
+        let offset = ((page_number - 1) * self.page_size) as u64;
         self.buf_reader.seek(SeekFrom::Start(offset))?;
+
         self.buf_reader.read_exact(&mut page_buffer)?;
-        Page::new(page_buffer, root_page)
+        let page = PageType::from_buffer(page_buffer, page_number);
+        page
     }
 
     // Utility function that is used to provide a buffer

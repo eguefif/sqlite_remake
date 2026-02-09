@@ -15,12 +15,11 @@
 //! A `cell` contains a record. See [Record] module for more information about records.
 //! But Cell format depends on the BTree type. See 1.6. B-tree Pages in
 //! [Sqlite fileformat documentation](https://www.sqlite.org/fileformat.html)
-use crate::db::{fileformat::record::Record, table::Table};
 use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
 use std::io::Cursor;
 
-pub struct Page {
+pub struct InteriorPage {
     buffer: Vec<u8>,
     pub page_number: usize,
 
@@ -29,9 +28,10 @@ pub struct Page {
     pub cell_number: usize,
     pub start_content: usize,
     pub frag_number: u8,
+    pub right_most_pointer: usize,
 }
 
-impl Page {
+impl InteriorPage {
     // Creates a new sqlite page
     // See documentation for the why https://www.sqlite.org/fileformat.html
     // THe first page contains the file header that measures 100 bytes.
@@ -47,6 +47,7 @@ impl Page {
         let cell_number = cursor.read_u16::<BigEndian>()? as usize;
         let start_content = cursor.read_u16::<BigEndian>()? as usize;
         let frag_number = cursor.read_u8()?;
+        let right_most_pointer = cursor.read_u32::<BigEndian>()? as usize;
 
         Ok(Self {
             buffer,
@@ -56,6 +57,7 @@ impl Page {
             cell_number,
             start_content,
             frag_number,
+            right_most_pointer,
         })
     }
 
@@ -81,55 +83,30 @@ impl Page {
         }
     }
 
-    /// Get the number of records in the page
-    /// A Cell contains a record, therefore, the number of record
-    /// is the number of cells in the page
-    pub fn get_record_number(&self) -> usize {
-        self.cell_number
-    }
-
     /// cell_pointer_array are pointers to page cells
     /// cells are records
-    pub fn get_cell_pointer_array(&self) -> &[u8] {
+    fn get_cell_pointer_array(&self) -> &[u8] {
         let buffer = self.get_page_buffer();
         let cell_number = self.cell_number;
-        return &buffer[8..8 + cell_number as usize * 2];
+        return &buffer[12..12 + cell_number as usize * 2];
     }
 
-    /// Get a slice
-    /// This function does not automaticaly shift the offset to after the file header
-    /// in case of the page is the first page. This functions is used mostly to retrieve record
-    pub fn get_slice(&self, start: usize, end: Option<usize>) -> &[u8] {
-        if let Some(end_range) = end {
-            &self.buffer[start..end_range]
-        } else {
-            &self.buffer[start..]
+    // TODO: This part has a bug. We got inconsisten page value
+    // when comparing with hexdump. There are 133 page in the file and
+    // we get
+    pub fn get_all_pointers(&self) -> Result<Vec<usize>> {
+        let mut index_pointers = vec![];
+        let cells_buffer = self.get_cell_pointer_array();
+        let mut cursor = Cursor::new(cells_buffer);
+        for _ in 0..self.cell_number {
+            let cell_pointer = cursor.read_u16::<BigEndian>()? as usize;
+            let mut cell_cursor = Cursor::new(&self.buffer[cell_pointer..cell_pointer + 4]);
+            let pointer = cell_cursor.read_u32::<BigEndian>()?;
+            index_pointers.push(pointer as usize);
         }
-    }
+        index_pointers.push(self.right_most_pointer);
 
-    pub fn get_all_records<'a>(&self, table: &'a Table) -> Result<Vec<Record<'a>>> {
-        let mut rows = vec![];
-        let cell_array = self.get_cell_pointer_array();
-        let mut cursor = Cursor::new(cell_array);
-
-        for _ in 0..self.get_record_number() {
-            let offset = cursor.read_u16::<BigEndian>()? as usize;
-            let record = Record::new(&self.get_slice(offset, None), table)?;
-            rows.push(record);
-        }
-
-        Ok(rows)
-    }
-
-    /// This function is used to iterate over records in a page
-    pub fn get_nth_record<'a>(&self, index: usize, schema_table: &'a Table) -> Result<Record<'a>> {
-        let cell_array_offset = index * 2;
-        let cell_array = self.get_cell_pointer_array();
-        let mut cursor = Cursor::new(&cell_array[cell_array_offset..]);
-        let offset = cursor.read_u16::<BigEndian>()? as usize;
-        let record = Record::new(&self.get_slice(offset as usize, None), schema_table)
-            .expect("Error: indexing record, file parsing failed");
-        Ok(record)
+        Ok(index_pointers)
     }
 }
 

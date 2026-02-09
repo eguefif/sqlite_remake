@@ -1,6 +1,5 @@
 //! Api to execute a raw sql string or a Sqlite special command
 use crate::db::DB;
-use crate::db::fileformat::page::Page;
 use crate::db::fileformat::record::Record;
 use crate::db::table::Table;
 use crate::executor::db_response::{RType, Response};
@@ -47,7 +46,7 @@ impl Executor {
         match query {
             Statement::Select(select_statement) => self.execute_select_statement(select_statement),
             Statement::Command(Command::DBinfo) => self.db.metadata.get_metadata(),
-            Statement::Command(Command::Tables) => self.db.metadata.get_metadata(),
+            Statement::Command(Command::Tables) => self.db.metadata.get_table_names(),
         }
     }
 
@@ -60,8 +59,10 @@ impl Executor {
             return Ok(None);
         };
 
-        let page = self.db.get_page(table.get_root_page())?;
-        let records = page.get_all_records(&table)?;
+        // TODO: refactor
+        // we want a seq scan here. We just going to get the vec from
+        // db with all the records and proceed
+        let records = self.db.seq_scan(&table)?;
         let response = records
             .into_iter()
             .filter(|record| {
@@ -75,16 +76,16 @@ impl Executor {
             .collect::<Result<Response>>()?;
 
         if let Some(func) = query.select_clause.get_function() {
-            Ok(Some(vec![execute_function(&page, func)]))
+            Ok(Some(vec![execute_function(&response, func)]))
         } else {
             Ok(Some(response))
         }
     }
 }
 
-fn execute_function(page: &Page, func: &FuncCall) -> Vec<RType> {
+fn execute_function(records: &Response, func: &FuncCall) -> Vec<RType> {
     match func.function_name.as_str() {
-        "count" => vec![RType::Num(page.get_record_number() as i64)],
+        "count" => vec![RType::Num(records.len() as i64)],
         _ => vec![],
     }
 }

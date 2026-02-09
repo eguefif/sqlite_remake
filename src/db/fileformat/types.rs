@@ -1,7 +1,9 @@
 /// A structure representing a variable-length integer (varint) as used in certain binary formats.
 /// See 1.6. B-tree Pages in [varint doc](https://www.sqlite.org/fileformat.html)
 /// There is a paragraph that starts with variable-length integer after the table.
-use std::fmt;
+use anyhow::Result;
+use byteorder::ReadBytesExt;
+use std::{fmt, io::Cursor};
 
 #[derive(Debug)]
 pub struct Varint {
@@ -26,6 +28,28 @@ impl Varint {
             }
         }
         Self { varint, size }
+    }
+
+    pub fn from_cursor(cursor: &mut Cursor<&[u8]>) -> Result<Self> {
+        let mut varint: i64 = 0;
+        let mut size = 0;
+        let mut i = 0;
+        loop {
+            let value = cursor.read_u8()?;
+
+            size += 1;
+            if i == 8 {
+                varint = (varint << 8) | value as i64;
+                break;
+            } else {
+                varint = (varint << 7) | (value & 0b0111_1111) as i64;
+                if value < 0b1000_0000 {
+                    break;
+                }
+            }
+            i += 1;
+        }
+        Ok(Self { varint, size })
     }
 }
 

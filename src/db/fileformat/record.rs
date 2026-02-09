@@ -67,6 +67,7 @@ impl<'a> Record<'a> {
             ColSerialType::Null => RType::Null,
             ColSerialType::Vu8 => RType::Num(cursor.read_i8()? as i64),
             ColSerialType::Vu16 => RType::Num(cursor.read_i16::<BigEndian>()? as i64),
+            ColSerialType::Vu24 => RType::Num(cursor.read_i32::<BigEndian>()? as i64),
             ColSerialType::Vu32 => RType::Num(cursor.read_i32::<BigEndian>()? as i64),
             ColSerialType::Vu48 => RType::Num(Self::get_i48(cursor)?),
             ColSerialType::Vu64 => RType::Num(cursor.read_i64::<BigEndian>()? as i64),
@@ -104,6 +105,7 @@ pub enum ColSerialType {
     Null,
     Vu8,
     Vu16,
+    Vu24,
     Vu32,
     Vu48,
     Vu64,
@@ -124,12 +126,13 @@ impl ColSerialType {
             0 => ColSerialType::Null,
             1 => ColSerialType::Vu8,
             2 => ColSerialType::Vu16,
-            3 => ColSerialType::Vu32,
-            4 => ColSerialType::Vu48,
-            5 => ColSerialType::Vu64,
-            6 => ColSerialType::Vf64,
-            7 => ColSerialType::V0,
-            8 => ColSerialType::V1,
+            3 => ColSerialType::Vu24,
+            4 => ColSerialType::Vu32,
+            5 => ColSerialType::Vu48,
+            6 => ColSerialType::Vu64,
+            7 => ColSerialType::Vf64,
+            8 => ColSerialType::V0,
+            9 => ColSerialType::V1,
             10 | 11 => ColSerialType::Variable,
             _ => {
                 if serial_type >= 12 && serial_type % 2 == 0 {
@@ -139,7 +142,7 @@ impl ColSerialType {
                     let size = (serial_type - 13) / 2;
                     return ColSerialType::Str(size);
                 }
-                panic!("Error: serial type is not valid");
+                panic!("Error: serial type is not valid: {:x}", serial_type);
             }
         }
     }
@@ -151,6 +154,7 @@ impl ColSerialType {
             ColSerialType::Null => 0,
             ColSerialType::Vu8 => 1,
             ColSerialType::Vu16 => 2,
+            ColSerialType::Vu24 => 3,
             ColSerialType::Vu32 => 4,
             ColSerialType::Vu48 => 6,
             ColSerialType::Vu64 => 8,
