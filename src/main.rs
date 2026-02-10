@@ -22,19 +22,25 @@ fn main() -> Result<()> {
     };
     let mut executor = Executor::new(db);
     match executor.execute(command) {
-        Ok(response) => display_response(&response),
+        Ok(response) => {
+            if command == ".dbinfo" || command == ".tables" {
+                display_response(&response, ' ');
+            } else {
+                display_response(&response, '|');
+            }
+        }
         Err(e) => eprintln!("Error: {}", e),
     }
 
     Ok(())
 }
 
-fn display_response(responses: &[(Statement, Response)]) {
+fn display_response(responses: &[(Statement, Response)], sep: char) {
     for (_, response) in responses {
         for row in response {
             for (i, col) in row.iter().enumerate() {
                 if i != 0 {
-                    print!("|");
+                    print!("{}", sep);
                 }
                 print!("{}", col);
             }

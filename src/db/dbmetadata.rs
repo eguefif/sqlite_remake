@@ -102,7 +102,7 @@ impl DBMetadata {
             RType::Num(self.get_page_size() as i64),
         ];
         let table_number = vec![
-            RType::Str("number of tables".to_string()),
+            RType::Str("number of tables:".to_string()),
             RType::Num(self.get_number_of_table() as i64),
         ];
         Ok(Some(vec![page_size, table_number]))
