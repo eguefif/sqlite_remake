@@ -3,6 +3,7 @@ use std::collections::HashMap;
 
 pub type SchemaTable = HashMap<String, Table>;
 
+#[derive(Debug)]
 pub enum TableType {
     Table,
     Index,
@@ -24,7 +25,7 @@ impl TableType {
 
 pub enum ColType {}
 
-#[allow(unused)]
+#[derive(Debug)]
 pub struct Table {
     pub table_type: TableType,
     name: String,

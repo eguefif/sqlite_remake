@@ -9,10 +9,14 @@
 //! * [record] A module that allows to read one record
 //! * [types]  Type associated of the fileformat
 
-use crate::db::fileformat::{interior_page::InteriorPage, page::Page};
+use crate::db::fileformat::{
+    interior_index::InteriorIndex, interior_page::InteriorPage, leaf_index::LeafIndex, page::Page,
+};
 use anyhow::{Result, anyhow};
 
+pub mod interior_index;
 pub mod interior_page;
+pub mod leaf_index;
 pub mod page;
 pub mod record;
 pub mod types;
@@ -20,6 +24,8 @@ pub mod types;
 pub enum PageType {
     InteriorPage(InteriorPage),
     Page(Page),
+    InteriorIndex(InteriorIndex),
+    LeafIndex(LeafIndex),
 }
 
 impl PageType {
@@ -30,6 +36,11 @@ impl PageType {
                 page_number,
             )?)),
             0x0d => Ok(PageType::Page(Page::new(buffer, page_number)?)),
+            0x02 => Ok(PageType::InteriorIndex(InteriorIndex::new(
+                buffer,
+                page_number,
+            )?)),
+            0x0a => Ok(PageType::LeafIndex(LeafIndex::new(buffer, page_number)?)),
             _ => Err(anyhow!("Page: unknow page type")),
         }
     }

@@ -15,12 +15,15 @@
 //! A `cell` contains a record. See [Record] module for more information about records.
 //! But Cell format depends on the BTree type. See 1.6. B-tree Pages in
 //! [Sqlite fileformat documentation](https://www.sqlite.org/fileformat.html)
-use crate::db::{fileformat::record::Record, table::Table};
+use crate::db::{
+    fileformat::{record::Record, types::Varint},
+    table::Table,
+};
 use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
 use std::io::Cursor;
 
-pub struct Page {
+pub struct LeafIndex {
     buffer: Vec<u8>,
     pub page_number: usize,
 
@@ -30,7 +33,7 @@ pub struct Page {
     pub frag_number: u8,
 }
 
-impl Page {
+impl LeafIndex {
     // Creates a new sqlite page
     // See documentation for the why https://www.sqlite.org/fileformat.html
     // THe first page contains the file header that measures 100 bytes.
@@ -112,7 +115,9 @@ impl Page {
 
         for _ in 0..self.get_record_number() {
             let offset = cursor.read_u16::<BigEndian>()? as usize;
+            println!("Before");
             let record = Record::new(&self.get_slice(offset, None), table)?;
+            println!("record: {:?}", record);
             rows.push(record);
         }
 

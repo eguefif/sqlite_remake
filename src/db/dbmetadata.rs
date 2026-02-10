@@ -40,9 +40,17 @@ impl DBMetadata {
 
             let cols_name = Self::get_cols_name(&tabledef);
 
-            let table = Table::new(table_type, name, tablename, rootpage, tabledef, cols_name);
+            // TODO: need to parse columns name better, it does not work for both
+            // table with \size range\ and indexes.
+            // Index need to have their own struct. Parsing columns is different
+            let mut table = Table::new(table_type, name, tablename, rootpage, tabledef, cols_name);
             match table.table_type {
-                TableType::Index => indexes.push(table),
+                TableType::Index => {
+                    // Indexes have another columns which is the rowid of the row
+                    // they point to.
+                    table.cols_name.push("rowdid".to_string());
+                    indexes.push(table);
+                }
                 TableType::Table => {
                     let name = table.tablename.clone();
                     schema.insert(name, table);
@@ -56,9 +64,12 @@ impl DBMetadata {
                 .entry(index.tablename.clone())
                 .and_modify(|table| table.indexes.push(index));
         }
+        println!("schema \n{:?}", schema);
         Ok(schema)
     }
 
+    // TODO: improve this function. It has to work for size(look at example)
+    // Add a new function to parse cols for index which is differnt.
     fn get_cols_name(tabledef: &str) -> Vec<String> {
         let values_str = tabledef.split('(').collect::<Vec<_>>()[1];
         values_str

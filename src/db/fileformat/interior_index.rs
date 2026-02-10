@@ -3,23 +3,15 @@
 //! A page can be of different types, see [PageType] enum.
 //!
 //! The first page is a special page as it contains the database header. It is stored
-//! in the first 100 bytes of the file. The rest of the page is a normal page.
-//! Note that for this page, the page header starts at 100 but the record offsets
-//! are relative to the start of the page (0).
+//! To write
 //!
-//! For now, we only suport B-Tree pages
-//! A page is composed of the following:
-//! * a header [PageHeader]
-//! * a cell pointer array: array of u16 offsets to the cells
-//!
-//! A `cell` contains a record. See [Record] module for more information about records.
-//! But Cell format depends on the BTree type. See 1.6. B-tree Pages in
-//! [Sqlite fileformat documentation](https://www.sqlite.org/fileformat.html)
 use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
 use std::io::Cursor;
 
-pub struct InteriorPage {
+use crate::db::fileformat::types::Varint;
+
+pub struct InteriorIndex {
     buffer: Vec<u8>,
     pub page_number: usize,
 
@@ -30,7 +22,7 @@ pub struct InteriorPage {
     pub right_most_pointer: usize,
 }
 
-impl InteriorPage {
+impl InteriorIndex {
     // Creates a new sqlite page
     // See documentation for the why https://www.sqlite.org/fileformat.html
     // THe first page contains the file header that measures 100 bytes.
@@ -89,9 +81,6 @@ impl InteriorPage {
         return &buffer[12..12 + cell_number as usize * 2];
     }
 
-    // TODO: This part has a bug. We got inconsisten page value
-    // when comparing with hexdump. There are 133 page in the file and
-    // we get
     pub fn get_all_pointers(&self) -> Result<Vec<usize>> {
         let mut index_pointers = vec![];
         let cells_buffer = self.get_cell_pointer_array();

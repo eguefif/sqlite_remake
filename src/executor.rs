@@ -56,11 +56,13 @@ impl Executor {
     // Records and Table lives only in this function scope.
     fn execute_select_statement(&mut self, query: &SelectStatement) -> Result<Option<Response>> {
         let Some(table) = self.db.take_table(&query.from_clause) else {
+            println!("table: {:?}", query);
             return Ok(None);
         };
 
         // Check for index if where => use index
         // else use seq_scan
+        let _ = self.db.index_scan(&table);
         let records = self.db.seq_scan(&table)?;
         let response = records
             .into_iter()

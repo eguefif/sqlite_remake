@@ -6,6 +6,7 @@
 //!
 use crate::db::dbmetadata::DBMetadata;
 use crate::db::fileformat::PageType;
+use crate::db::fileformat::interior_index::InteriorIndex;
 use crate::db::fileformat::interior_page::InteriorPage;
 use crate::db::fileformat::page::Page;
 use crate::db::fileformat::record::Record;
@@ -58,23 +59,57 @@ impl DB {
     }
 
     pub fn index_scan<'a>(&mut self, table: &'a Table) -> Result<Vec<Record<'a>>> {
-        let page = self.get_page(table.get_root_page())?;
+        let index = table.indexes.first().unwrap();
+        let root_page = index.get_root_page();
+        let PageType::InteriorIndex(page) = self.get_page(root_page)? else {
+            panic!();
+        };
         let retval = vec![];
+        let index_values = self.traverse_btree_index(page, index)?;
+        println!("Index size: {}", index_values.len());
         // 1. Get index and apply where => return a list of rowid
         // 2. Retrieve each row using self.get_rowid(rowid)
 
         Ok(retval)
     }
 
+    fn traverse_btree_index<'a>(
+        &mut self,
+        page: InteriorIndex,
+        index: &'a Table,
+    ) -> Result<Vec<Record<'a>>> {
+        let mut retval = vec![];
+        let pointers = page.get_all_pointers()?;
+        println!("pointers: {:x?}", pointers);
+        for pointer in pointers {
+            let page = self.get_page(pointer)?;
+            match page {
+                PageType::InteriorIndex(page) => {
+                    let mut records = self.traverse_btree_index(page, index)?;
+                    retval.append(&mut records)
+                }
+                PageType::LeafIndex(page) => {
+                    println!("Leaf");
+                    let mut records = page.get_all_records(index)?;
+                    retval.append(&mut records);
+                }
+                _ => panic!(),
+            }
+        }
+        Ok(retval)
+    }
+
     fn get_rowid(&mut self, rowid: usize) -> Result<()> {
         Ok(())
     }
+
     pub fn seq_scan<'a>(&mut self, table: &'a Table) -> Result<Vec<Record<'a>>> {
         let page = self.get_page(table.get_root_page())?;
 
         match page {
             PageType::InteriorPage(page) => self.traverse_btree(page, table),
             PageType::Page(page) => page.get_all_records(table),
+            _ => panic!(),
         }
     }
 
@@ -96,6 +131,7 @@ impl DB {
                     let mut records = self.traverse_btree(page, table)?;
                     retval.append(&mut records)
                 }
+                _ => panic!(),
             }
         }
         Ok(retval)
