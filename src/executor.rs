@@ -59,9 +59,8 @@ impl Executor {
             return Ok(None);
         };
 
-        // TODO: refactor
-        // we want a seq scan here. We just going to get the vec from
-        // db with all the records and proceed
+        // Check for index if where => use index
+        // else use seq_scan
         let records = self.db.seq_scan(&table)?;
         let response = records
             .into_iter()

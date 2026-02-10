@@ -57,6 +57,18 @@ impl DB {
         self.metadata.take_table(tablename)
     }
 
+    pub fn index_scan<'a>(&mut self, table: &'a Table) -> Result<Vec<Record<'a>>> {
+        let page = self.get_page(table.get_root_page())?;
+        let retval = vec![];
+        // 1. Get index and apply where => return a list of rowid
+        // 2. Retrieve each row using self.get_rowid(rowid)
+
+        Ok(retval)
+    }
+
+    fn get_rowid(&mut self, rowid: usize) -> Result<()> {
+        Ok(())
+    }
     pub fn seq_scan<'a>(&mut self, table: &'a Table) -> Result<Vec<Record<'a>>> {
         let page = self.get_page(table.get_root_page())?;
 

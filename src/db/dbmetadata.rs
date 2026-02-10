@@ -1,7 +1,7 @@
 //! This module offer an abstraction over the sqlite database metadata
 //!
 use crate::db::fileformat::page::Page;
-use crate::db::table::{SchemaTable, Table};
+use crate::db::table::{SchemaTable, Table, TableType};
 use crate::executor::db_response::{RType, Response};
 use anyhow::{Result, anyhow};
 use std::collections::HashMap;
@@ -20,6 +20,8 @@ impl DBMetadata {
     fn create_table_schema(page: &Page) -> Result<SchemaTable> {
         let mut schema: SchemaTable = HashMap::new();
         let schema_table = Table::schema_table();
+        let mut indexes: Vec<Table> = vec![];
+
         for n in 0..page.get_record_number() {
             let mut record = page.get_nth_record(n, &schema_table)?;
             let Some(RType::Str(table_type)) = record.take_field("table_type") else {
@@ -38,8 +40,21 @@ impl DBMetadata {
 
             let cols_name = Self::get_cols_name(&tabledef);
 
-            let table = Table::new(table_type, name, rootpage, tabledef, cols_name);
-            schema.insert(tablename.to_string(), table);
+            let table = Table::new(table_type, name, tablename, rootpage, tabledef, cols_name);
+            match table.table_type {
+                TableType::Index => indexes.push(table),
+                TableType::Table => {
+                    let name = table.tablename.clone();
+                    schema.insert(name, table);
+                }
+
+                _ => return Err(anyhow!("Parsing tables: table type not handled.")),
+            }
+        }
+        for index in indexes.into_iter() {
+            schema
+                .entry(index.tablename.clone())
+                .and_modify(|table| table.indexes.push(index));
         }
         Ok(schema)
     }
