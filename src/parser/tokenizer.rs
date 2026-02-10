@@ -63,7 +63,7 @@ impl Iterator for Tokenizer<'_> {
         let token = match next {
             ';' => Token::from_str(";"),
             ',' => Token::from_str(","),
-            '(' => Token::from_str("()"),
+            '(' => Token::from_str("("),
             ')' => Token::from_str(")"),
             '+' => Token::from_str("+"),
             '-' => Token::from_str("-"),
@@ -305,6 +305,25 @@ mod tests {
             Token::Ident("name".to_string()),
             Token::Equal,
             Token::QIdent("hello world".to_string()),
+        ];
+
+        for (expected, token) in expected_tokens.into_iter().zip(tokenizer) {
+            assert_eq!(token.unwrap(), expected);
+        }
+    }
+
+    #[test]
+    fn it_should_tokenize_token_a_select() {
+        let tokenizer = Tokenizer::new("SELECT COUNT(*) FROM star");
+
+        let expected_tokens = [
+            Token::Select,
+            Token::Ident("count".to_string()),
+            Token::LParen,
+            Token::Star,
+            Token::RParen,
+            Token::From,
+            Token::Ident("star".to_string()),
         ];
 
         for (expected, token) in expected_tokens.into_iter().zip(tokenizer) {
