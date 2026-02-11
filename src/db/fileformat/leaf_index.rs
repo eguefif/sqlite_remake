@@ -15,10 +15,7 @@
 //! A `cell` contains a record. See [Record] module for more information about records.
 //! But Cell format depends on the BTree type. See 1.6. B-tree Pages in
 //! [Sqlite fileformat documentation](https://www.sqlite.org/fileformat.html)
-use crate::db::{
-    fileformat::{record::Record, types::Varint},
-    table::Table,
-};
+use crate::db::{fileformat::record::Record, table::Table};
 use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
 use std::io::Cursor;

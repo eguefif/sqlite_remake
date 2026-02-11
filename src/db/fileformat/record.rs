@@ -72,9 +72,9 @@ impl<'a> Record<'a> {
             ColSerialType::Vu8 => RType::Num(cursor.read_i8()? as i64),
             ColSerialType::Vu16 => RType::Num(cursor.read_i16::<BigEndian>()? as i64),
             ColSerialType::Vu24 => {
-                let p1 = cursor.read_i16::<BigEndian>()? as i64;
-                let p2 = cursor.read_i8()? as i64;
-                RType::Num((p1 << 16) | p2 as i64)
+                let p1 = cursor.read_u16::<BigEndian>()? as u64;
+                let p2 = cursor.read_u8()? as i64;
+                RType::Num((p1 << 8) as i64 | p2 as i64)
             }
             ColSerialType::Vu32 => RType::Num(cursor.read_i32::<BigEndian>()? as i64),
             ColSerialType::Vu48 => RType::Num(Self::get_i48(cursor)?),

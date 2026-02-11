@@ -26,6 +26,7 @@ impl TableType {
 pub enum ColType {}
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct Table {
     pub table_type: TableType,
     name: String,
@@ -80,5 +81,16 @@ impl Table {
 
     pub fn get_root_page(&self) -> usize {
         self.root_page
+    }
+
+    pub fn has_index_on(&self, where_clause: &crate::parser::where_clause::Where) -> bool {
+        if let Some(column_name) = where_clause.get_identifier() {
+            // TODO: this does not look right...
+            // to_string() to ref from &str
+            for index in self.indexes.iter() {
+                return index.cols_name.contains(&column_name.to_string());
+            }
+        }
+        false
     }
 }

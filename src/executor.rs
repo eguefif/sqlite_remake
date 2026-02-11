@@ -60,9 +60,18 @@ impl Executor {
             return Ok(None);
         };
 
-        // Check for index if where => use index
-        // else use seq_scan
-        let _ = self.db.index_scan(&table);
+        // Check for index and use it
+        if let Some(where_clause) = &query.where_clause {
+            if table.has_index_on(where_clause) {
+                let records = self.db.index_scan(&table, where_clause)?;
+                let response = records
+                    .into_iter()
+                    .map(|record| apply_select_clause(record, &query.select_clause, &table))
+                    .collect::<Result<Response>>()?;
+                return Ok(Some(response));
+            }
+        }
+        // If no index, full scan
         let records = self.db.seq_scan(&table)?;
         let response = records
             .into_iter()

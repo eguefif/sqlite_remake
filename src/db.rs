@@ -11,6 +11,8 @@ use crate::db::fileformat::interior_page::InteriorPage;
 use crate::db::fileformat::page::Page;
 use crate::db::fileformat::record::Record;
 use crate::db::table::Table;
+use crate::executor::db_response::RType;
+use crate::parser::where_clause::Where;
 use anyhow::Result;
 use std::fs::File;
 use std::io::BufReader;
@@ -58,15 +60,34 @@ impl DB {
         self.metadata.take_table(tablename)
     }
 
-    pub fn index_scan<'a>(&mut self, table: &'a Table) -> Result<Vec<Record<'a>>> {
+    pub fn index_scan<'a>(
+        &mut self,
+        table: &'a Table,
+        where_clause: &Where,
+    ) -> Result<Vec<Record<'a>>> {
+        // Retrieve all indexes pointers
         let index = table.indexes.first().unwrap();
         let root_page = index.get_root_page();
         let PageType::InteriorIndex(page) = self.get_page(root_page)? else {
             panic!();
         };
-        let retval = vec![];
-        let index_values = self.traverse_btree_index(page, index)?;
-        println!("Index size: {}", index_values.len());
+        let mut retval = vec![];
+        let mut index_values = self.traverse_btree_index(page, index)?;
+
+        // For each pointers, check if they match the where clause
+        for index in index_values.iter_mut() {
+            let fields = index.take_fields();
+            let column_name = where_clause.get_identifier().unwrap();
+            let value = fields.get(column_name);
+            if where_clause.evaluate(value) {
+                if let RType::Num(rowid) = fields.get("rowid").unwrap() {
+                    let root_page = table.get_root_page();
+                    if let Some(value) = self.get_record(root_page, *rowid as usize, table) {
+                        retval.push(value);
+                    }
+                }
+            }
+        }
         // 1. Get index and apply where => return a list of rowid
         // 2. Retrieve each row using self.get_rowid(rowid)
 
@@ -84,7 +105,9 @@ impl DB {
             let page = self.get_page(pointer)?;
             match page {
                 PageType::InteriorIndex(page) => {
+                    let mut page_records = page.get_all_records(index)?;
                     let mut records = self.traverse_btree_index(page, index)?;
+                    retval.append(&mut page_records);
                     retval.append(&mut records)
                 }
                 PageType::LeafIndex(page) => {
@@ -97,8 +120,35 @@ impl DB {
         Ok(retval)
     }
 
-    fn get_rowid(&mut self, rowid: usize) -> Result<()> {
-        Ok(())
+    fn get_record<'a>(
+        &mut self,
+        page_number: usize,
+        rowid: usize,
+        table: &'a Table,
+    ) -> Option<Record<'a>> {
+        let page = self.get_page(page_number).unwrap();
+        match page {
+            PageType::Page(page) => {
+                for i in 0..page.get_record_number() {
+                    let record = page.get_nth_record(i, table).unwrap();
+                    if record.rowid == rowid {
+                        return Some(record);
+                    }
+                }
+                None
+            }
+            PageType::InteriorPage(page) => {
+                let pointers = page.get_all_pointers().unwrap();
+                for pointer in pointers {
+                    match self.get_record(pointer, rowid, table) {
+                        Some(record) => return Some(record),
+                        None => continue,
+                    }
+                }
+                None
+            }
+            _ => panic!(),
+        }
     }
 
     pub fn seq_scan<'a>(&mut self, table: &'a Table) -> Result<Vec<Record<'a>>> {

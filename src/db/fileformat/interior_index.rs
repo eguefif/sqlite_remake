@@ -9,7 +9,7 @@ use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
 use std::io::Cursor;
 
-use crate::db::fileformat::types::Varint;
+use crate::db::{fileformat::record::Record, table::Table};
 
 pub struct InteriorIndex {
     buffer: Vec<u8>,
@@ -79,6 +79,32 @@ impl InteriorIndex {
         let buffer = self.get_page_buffer();
         let cell_number = self.cell_number;
         return &buffer[12..12 + cell_number as usize * 2];
+    }
+
+    /// Get a slice
+    /// This function does not automaticaly shift the offset to after the file header
+    /// in case of the page is the first page. This functions is used mostly to retrieve record
+    pub fn get_slice(&self, start: usize, end: Option<usize>) -> &[u8] {
+        if let Some(end_range) = end {
+            &self.buffer[start..end_range]
+        } else {
+            &self.buffer[start..]
+        }
+    }
+
+    pub fn get_all_records<'a>(&self, table: &'a Table) -> Result<Vec<Record<'a>>> {
+        let mut records = vec![];
+        let cells_buffer = self.get_cell_pointer_array();
+        let mut cursor = Cursor::new(cells_buffer);
+        for _ in 0..self.cell_number {
+            let cell_pointer = cursor.read_u16::<BigEndian>()? as usize;
+            let mut cell_cursor = Cursor::new(&self.buffer[cell_pointer..cell_pointer + 4]);
+            let _ = cell_cursor.read_u32::<BigEndian>()?;
+            let record = Record::new(&self.get_slice(cell_pointer + 4, None), table, false)?;
+            records.push(record);
+        }
+
+        Ok(records)
     }
 
     pub fn get_all_pointers(&self) -> Result<Vec<usize>> {
