@@ -40,15 +40,12 @@ impl DBMetadata {
 
             let cols_name = Self::get_cols_name(&tabledef);
 
-            // TODO: need to parse columns name better, it does not work for both
-            // table with \size range\ and indexes.
-            // Index need to have their own struct. Parsing columns is different
             let mut table = Table::new(table_type, name, tablename, rootpage, tabledef, cols_name);
             match table.table_type {
                 TableType::Index => {
                     // Indexes have another columns which is the rowid of the row
                     // they point to.
-                    table.cols_name.push("rowdid".to_string());
+                    table.cols_name.push("rowid".to_string());
                     indexes.push(table);
                 }
                 TableType::Table => {
@@ -64,32 +61,34 @@ impl DBMetadata {
                 .entry(index.tablename.clone())
                 .and_modify(|table| table.indexes.push(index));
         }
-        println!("schema \n{:?}", schema);
         Ok(schema)
     }
 
-    // TODO: improve this function. It has to work for size(look at example)
-    // Add a new function to parse cols for index which is differnt.
     fn get_cols_name(tabledef: &str) -> Vec<String> {
         let values_str = tabledef.split('(').collect::<Vec<_>>()[1];
+        let values_str = values_str.trim_end_matches(")");
         values_str
             .split(',')
             .map(|value| Self::trim_column_def(value.trim()))
             .collect::<Vec<_>>()
     }
 
+    // This function takes a schema table columns definition and return the name
+    // Some column's name can have space such in \"Size Range\"
+    // Example: name text returns name
     fn trim_column_def(value: &str) -> String {
-        // NOTE: Why did I do that ?
-        if value.contains(' ') {
-            value
-                .split(' ')
-                .next()
-                .expect("We know that there is space")
-                .trim()
-                .to_string()
-        } else {
-            value.trim().to_string()
+        let mut column_name = String::new();
+        let mut ignore_space = false;
+        for c in value.chars() {
+            if c == ' ' && ignore_space != true {
+                break;
+            } else if c == '\"' {
+                ignore_space = !ignore_space;
+                continue;
+            }
+            column_name.push(c);
         }
+        column_name
     }
 
     fn get_root_page(record: Option<RType>) -> Result<usize> {

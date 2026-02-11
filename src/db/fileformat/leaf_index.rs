@@ -115,12 +115,9 @@ impl LeafIndex {
 
         for _ in 0..self.get_record_number() {
             let offset = cursor.read_u16::<BigEndian>()? as usize;
-            println!("Before");
-            let record = Record::new(&self.get_slice(offset, None), table)?;
-            println!("record: {:?}", record);
+            let record = Record::new(&self.get_slice(offset, None), table, false)?;
             rows.push(record);
         }
-
         Ok(rows)
     }
 
@@ -130,7 +127,7 @@ impl LeafIndex {
         let cell_array = self.get_cell_pointer_array();
         let mut cursor = Cursor::new(&cell_array[cell_array_offset..]);
         let offset = cursor.read_u16::<BigEndian>()? as usize;
-        let record = Record::new(&self.get_slice(offset as usize, None), schema_table)
+        let record = Record::new(&self.get_slice(offset as usize, None), schema_table, false)
             .expect("Error: indexing record, file parsing failed");
         Ok(record)
     }

@@ -19,10 +19,14 @@ pub struct Record<'a> {
 }
 
 impl<'a> Record<'a> {
-    pub fn new(buffer: &[u8], table: &'a Table) -> Result<Self> {
+    pub fn new(buffer: &[u8], table: &'a Table, is_rowid: bool) -> Result<Self> {
         // Parsing cell Header
         let cell_size = Varint::new(buffer);
-        let rowid = Varint::new(&buffer[cell_size.size..]);
+        let rowid = if is_rowid == true {
+            Varint::new(&buffer[cell_size.size..])
+        } else {
+            Varint::from_value(0, 0)
+        };
 
         // Parsing record header
         let buffer_start = cell_size.size + rowid.size;
@@ -67,7 +71,11 @@ impl<'a> Record<'a> {
             ColSerialType::Null => RType::Null,
             ColSerialType::Vu8 => RType::Num(cursor.read_i8()? as i64),
             ColSerialType::Vu16 => RType::Num(cursor.read_i16::<BigEndian>()? as i64),
-            ColSerialType::Vu24 => RType::Num(cursor.read_i32::<BigEndian>()? as i64),
+            ColSerialType::Vu24 => {
+                let p1 = cursor.read_i16::<BigEndian>()? as i64;
+                let p2 = cursor.read_i8()? as i64;
+                RType::Num((p1 << 16) | p2 as i64)
+            }
             ColSerialType::Vu32 => RType::Num(cursor.read_i32::<BigEndian>()? as i64),
             ColSerialType::Vu48 => RType::Num(Self::get_i48(cursor)?),
             ColSerialType::Vu64 => RType::Num(cursor.read_i64::<BigEndian>()? as i64),

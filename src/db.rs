@@ -80,7 +80,6 @@ impl DB {
     ) -> Result<Vec<Record<'a>>> {
         let mut retval = vec![];
         let pointers = page.get_all_pointers()?;
-        println!("pointers: {:x?}", pointers);
         for pointer in pointers {
             let page = self.get_page(pointer)?;
             match page {
@@ -89,7 +88,6 @@ impl DB {
                     retval.append(&mut records)
                 }
                 PageType::LeafIndex(page) => {
-                    println!("Leaf");
                     let mut records = page.get_all_records(index)?;
                     retval.append(&mut records);
                 }

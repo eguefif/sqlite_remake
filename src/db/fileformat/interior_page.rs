@@ -89,9 +89,6 @@ impl InteriorPage {
         return &buffer[12..12 + cell_number as usize * 2];
     }
 
-    // TODO: This part has a bug. We got inconsisten page value
-    // when comparing with hexdump. There are 133 page in the file and
-    // we get
     pub fn get_all_pointers(&self) -> Result<Vec<usize>> {
         let mut index_pointers = vec![];
         let cells_buffer = self.get_cell_pointer_array();

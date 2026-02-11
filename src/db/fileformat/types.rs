@@ -30,6 +30,10 @@ impl Varint {
         Self { varint, size }
     }
 
+    pub fn from_value(varint: i64, size: usize) -> Self {
+        Self { varint, size }
+    }
+
     pub fn from_cursor(cursor: &mut Cursor<&[u8]>) -> Result<Self> {
         let mut varint: i64 = 0;
         let mut size = 0;
