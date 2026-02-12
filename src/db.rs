@@ -72,19 +72,19 @@ impl DB {
             panic!();
         };
         let mut retval = vec![];
-        let mut index_values = self.traverse_btree_index(page, index)?;
+        let Some((pointer_page, pointer)) = self.traverse_btree_index(page, index, where_clause)?
+        else {
+            panic!()
+        };
+        let mut index_values = self.get_index_values(pointer_page, pointer, index, where_clause)?;
 
         // For each pointers, check if they match the where clause
         for index in index_values.iter_mut() {
             let fields = index.take_fields();
-            let column_name = where_clause.get_identifier().unwrap();
-            let value = fields.get(column_name);
-            if where_clause.evaluate(value) {
-                if let RType::Num(rowid) = fields.get("rowid").unwrap() {
-                    let root_page = table.get_root_page();
-                    if let Some(value) = self.get_record(root_page, *rowid as usize, table) {
-                        retval.push(value);
-                    }
+            if let RType::Num(rowid) = fields.get("rowid").unwrap() {
+                let root_page = table.get_root_page();
+                if let Some(value) = self.get_record(root_page, *rowid as usize, table) {
+                    retval.push(value);
                 }
             }
         }
@@ -94,30 +94,75 @@ impl DB {
         Ok(retval)
     }
 
-    fn traverse_btree_index<'a>(
+    fn get_index_values<'a>(
         &mut self,
-        page: InteriorIndex,
-        index: &'a Table,
+        mut pointer_page: usize,
+        mut _pointer: usize,
+        table: &'a Table,
+        where_clause: &Where,
     ) -> Result<Vec<Record<'a>>> {
         let mut retval = vec![];
-        let pointers = page.get_all_pointers()?;
-        for pointer in pointers {
-            let page = self.get_page(pointer)?;
-            match page {
-                PageType::InteriorIndex(page) => {
-                    let mut page_records = page.get_all_records(index)?;
-                    let mut records = self.traverse_btree_index(page, index)?;
-                    retval.append(&mut page_records);
-                    retval.append(&mut records)
-                }
+        let column = where_clause.get_identifier().unwrap();
+        'outer: loop {
+            match self.get_page(pointer_page)? {
+                PageType::InteriorIndex(page) => loop {
+                    if let Some(pointer) = page.is_where(where_clause, table)? {
+                        let Ok((pointer_p, record)) = page.get_nth_record(pointer, table) else {
+                            break;
+                        };
+                        retval.push(record);
+                        pointer_page = pointer_p;
+                        break;
+                    }
+                },
+
                 PageType::LeafIndex(page) => {
-                    let mut records = page.get_all_records(index)?;
-                    retval.append(&mut records);
+                    if let Some(pointer) = page.is_where(where_clause, table)? {
+                        for i in pointer..page.get_record_number() {
+                            let record = page.get_nth_record(i, table)?;
+                            let field = record.get_field(column);
+                            if where_clause.evaluate(field) == false {
+                                break 'outer;
+                            }
+                            retval.push(record);
+                        }
+                    }
+                    pointer_page += 1;
                 }
                 _ => panic!(),
             }
         }
+
         Ok(retval)
+    }
+
+    fn traverse_btree_index<'a>(
+        &mut self,
+        page: InteriorIndex,
+        index: &'a Table,
+        where_clause: &Where,
+    ) -> Result<Option<(usize, usize)>> {
+        let pointers = page.get_all_pointers()?;
+        for pointer_page in pointers {
+            let page = self.get_page(pointer_page)?;
+            match page {
+                PageType::InteriorIndex(page) => {
+                    if let Some(pointer) = page.is_where(where_clause, index)? {
+                        return Ok(Some((pointer_page, pointer)));
+                    }
+                    return self.traverse_btree_index(page, index, where_clause);
+                }
+                PageType::LeafIndex(page) => {
+                    if let Some(pointer) = page.is_where(where_clause, index)? {
+                        return Ok(Some((pointer_page, pointer)));
+                    } else {
+                        return Ok(None);
+                    }
+                }
+                _ => panic!(),
+            }
+        }
+        Ok(None)
     }
 
     fn get_record<'a>(

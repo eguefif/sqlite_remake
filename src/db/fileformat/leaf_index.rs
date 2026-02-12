@@ -15,7 +15,10 @@
 //! A `cell` contains a record. See [Record] module for more information about records.
 //! But Cell format depends on the BTree type. See 1.6. B-tree Pages in
 //! [Sqlite fileformat documentation](https://www.sqlite.org/fileformat.html)
-use crate::db::{fileformat::record::Record, table::Table};
+use crate::{
+    db::{fileformat::record::Record, table::Table},
+    parser::where_clause::Where,
+};
 use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
 use std::io::Cursor;
@@ -127,5 +130,21 @@ impl LeafIndex {
         let record = Record::new(&self.get_slice(offset as usize, None), schema_table, false)
             .expect("Error: indexing record, file parsing failed");
         Ok(record)
+    }
+
+    pub fn is_where<'a>(&self, where_clause: &Where, table: &'a Table) -> Result<Option<usize>> {
+        let cell_array = self.get_cell_pointer_array();
+        let mut cursor = Cursor::new(cell_array);
+
+        for i in 0..self.get_record_number() {
+            let offset = cursor.read_u16::<BigEndian>()? as usize;
+            let mut record = Record::new(&self.get_slice(offset, None), table, false)?;
+            let column = where_clause.get_identifier().unwrap();
+            let field = record.take_field(column);
+            if where_clause.evaluate(field.as_ref()) == true {
+                return Ok(Some(i));
+            }
+        }
+        Ok(None)
     }
 }

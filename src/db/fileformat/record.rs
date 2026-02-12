@@ -54,6 +54,10 @@ impl<'a> Record<'a> {
         })
     }
 
+    pub fn get_field(&self, key: &str) -> Option<&RType> {
+        return self.fields.get(key);
+    }
+
     pub fn take_fields(&mut self) -> HashMap<&str, RType> {
         std::mem::take(&mut self.fields)
     }

@@ -5,11 +5,14 @@
 //! The first page is a special page as it contains the database header. It is stored
 //! To write
 //!
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use byteorder::{BigEndian, ReadBytesExt};
 use std::io::Cursor;
 
-use crate::db::{fileformat::record::Record, table::Table};
+use crate::{
+    db::{fileformat::record::Record, table::Table},
+    parser::where_clause::Where,
+};
 
 pub struct InteriorIndex {
     buffer: Vec<u8>,
@@ -98,8 +101,6 @@ impl InteriorIndex {
         let mut cursor = Cursor::new(cells_buffer);
         for _ in 0..self.cell_number {
             let cell_pointer = cursor.read_u16::<BigEndian>()? as usize;
-            let mut cell_cursor = Cursor::new(&self.buffer[cell_pointer..cell_pointer + 4]);
-            let _ = cell_cursor.read_u32::<BigEndian>()?;
             let record = Record::new(&self.get_slice(cell_pointer + 4, None), table, false)?;
             records.push(record);
         }
@@ -120,5 +121,49 @@ impl InteriorIndex {
         index_pointers.push(self.right_most_pointer);
 
         Ok(index_pointers)
+    }
+
+    pub fn get_record_number(&self) -> usize {
+        self.cell_number
+    }
+
+    /// This function is used to iterate over records in a page
+    pub fn get_nth_record<'a>(
+        &self,
+        index: usize,
+        schema_table: &'a Table,
+    ) -> Result<(usize, Record<'a>)> {
+        if index > self.get_record_number() {
+            return Err(anyhow!(""));
+        }
+        let cell_array_offset = index * 2;
+        let cell_array = self.get_cell_pointer_array();
+        let mut cursor = Cursor::new(&cell_array[cell_array_offset..]);
+        let offset = cursor.read_u16::<BigEndian>()? as usize;
+        let mut buf_cursor = Cursor::new(&self.buffer[offset as usize..]);
+        let pointer_page = buf_cursor.read_u32::<BigEndian>()? as usize;
+        let record = Record::new(
+            &self.get_slice(offset + 4 as usize, None),
+            schema_table,
+            false,
+        )
+        .expect("Error: indexing record, file parsing failed");
+        Ok((pointer_page, record))
+    }
+
+    pub fn is_where<'a>(&self, where_clause: &Where, table: &'a Table) -> Result<Option<usize>> {
+        let cell_array = self.get_cell_pointer_array();
+        let mut cursor = Cursor::new(cell_array);
+
+        for i in 0..self.get_record_number() {
+            let offset = cursor.read_u16::<BigEndian>()? as usize;
+            let mut record = Record::new(&self.get_slice(offset + 4, None), table, false)?;
+            let column = where_clause.get_identifier().unwrap();
+            let field = record.take_field(column);
+            if where_clause.evaluate(field.as_ref()) == true {
+                return Ok(Some(i));
+            }
+        }
+        Ok(None)
     }
 }

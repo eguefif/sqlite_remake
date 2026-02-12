@@ -52,6 +52,16 @@ impl Where {
         None
     }
 
+    pub fn get_value(&self) -> &str {
+        if let Token::QIdent(ident) = &self.right {
+            return ident;
+        };
+        if let Token::QIdent(ident) = &self.left {
+            return ident;
+        };
+        panic!();
+    }
+
     pub fn evaluate(&self, value: Option<&RType>) -> bool {
         if let Some(value) = value {
             let left: RType = self.right.into_rtype();
