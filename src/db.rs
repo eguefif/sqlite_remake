@@ -72,11 +72,10 @@ impl DB {
             panic!();
         };
         let mut retval = vec![];
-        let Some((pointer_page, pointer)) = self.traverse_btree_index(page, index, where_clause)?
-        else {
-            panic!()
+        let Some(pointer_page) = self.traverse_btree_index(page, index, where_clause)? else {
+            return Ok(vec![]);
         };
-        let mut index_values = self.get_index_values(pointer_page, pointer, index, where_clause)?;
+        let mut index_values = self.get_index_values(pointer_page, index, where_clause)?;
 
         // For each pointers, check if they match the where clause
         for index in index_values.iter_mut() {
@@ -97,7 +96,6 @@ impl DB {
     fn get_index_values<'a>(
         &mut self,
         mut pointer_page: usize,
-        mut _pointer: usize,
         table: &'a Table,
         where_clause: &Where,
     ) -> Result<Vec<Record<'a>>> {
@@ -141,20 +139,20 @@ impl DB {
         page: InteriorIndex,
         index: &'a Table,
         where_clause: &Where,
-    ) -> Result<Option<(usize, usize)>> {
+    ) -> Result<Option<usize>> {
         let pointers = page.get_all_pointers()?;
         for pointer_page in pointers {
             let page = self.get_page(pointer_page)?;
             match page {
                 PageType::InteriorIndex(page) => {
-                    if let Some(pointer) = page.is_where(where_clause, index)? {
-                        return Ok(Some((pointer_page, pointer)));
+                    if let Some(_) = page.is_where(where_clause, index)? {
+                        return Ok(Some(pointer_page));
                     }
                     return self.traverse_btree_index(page, index, where_clause);
                 }
                 PageType::LeafIndex(page) => {
-                    if let Some(pointer) = page.is_where(where_clause, index)? {
-                        return Ok(Some((pointer_page, pointer)));
+                    if let Some(_) = page.is_where(where_clause, index)? {
+                        return Ok(Some(pointer_page));
                     } else {
                         return Ok(None);
                     }
