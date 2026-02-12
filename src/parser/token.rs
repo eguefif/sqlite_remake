@@ -3,7 +3,7 @@ use std::fmt;
 
 use crate::executor::db_response::RType;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Token {
     Illegal(String),
     Select,
@@ -122,7 +122,7 @@ impl fmt::Display for Token {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Command {
     DBinfo,
     Tables,

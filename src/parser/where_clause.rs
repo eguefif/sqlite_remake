@@ -28,9 +28,9 @@ impl fmt::Display for Operator {
 
 #[derive(Debug)]
 pub struct Where {
-    left: Token,
+    pub left: Token,
     operator: Token,
-    right: Token,
+    pub right: Token,
 }
 
 impl Where {
@@ -40,6 +40,14 @@ impl Where {
             operator,
             right,
         })
+    }
+
+    pub fn from_where(where_clause: &Self, operator: Token) -> Self {
+        Self {
+            left: where_clause.left.clone(),
+            operator,
+            right: where_clause.right.clone(),
+        }
     }
 
     pub fn get_identifier(&self) -> Option<&str> {
@@ -63,11 +71,24 @@ impl Where {
     }
 
     pub fn evaluate(&self, value: Option<&RType>) -> bool {
-        if let Some(value) = value {
-            let left: RType = self.right.into_rtype();
-            &left == value
-        } else {
-            self.left == self.right
+        match self.operator {
+            Token::Equal => {
+                if let Some(value) = value {
+                    let left: RType = self.right.into_rtype();
+                    return &left == value;
+                } else {
+                    return self.left == self.right;
+                }
+            }
+            Token::LTEQ => {
+                if let Some(value) = value {
+                    let left: RType = self.right.into_rtype();
+                    &left <= value
+                } else {
+                    self.left == self.right
+                }
+            }
+            _ => panic!(),
         }
     }
 }

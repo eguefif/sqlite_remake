@@ -11,7 +11,7 @@ use std::io::Cursor;
 
 use crate::{
     db::{fileformat::record::Record, table::Table},
-    parser::where_clause::Where,
+    parser::{token::Token, where_clause::Where},
 };
 
 pub struct InteriorIndex {
@@ -165,5 +165,26 @@ impl InteriorIndex {
             }
         }
         Ok(None)
+    }
+
+    pub fn get_next_page<'a>(&self, where_clause: &Where, table: &'a Table) -> Result<usize> {
+        let cell_array = self.get_cell_pointer_array();
+        let mut cursor = Cursor::new(cell_array);
+
+        let less_than_where = Where::from_where(where_clause, Token::LTEQ);
+        for _ in 0..self.get_record_number() {
+            let offset = cursor.read_u16::<BigEndian>()? as usize;
+            let mut buf_cursor = Cursor::new(&self.buffer[offset as usize..]);
+            let pointer_page = buf_cursor.read_u32::<BigEndian>()? as usize;
+
+            let mut record = Record::new(&self.get_slice(offset + 4, None), table, false)?;
+
+            let column = where_clause.get_identifier().unwrap();
+            let field = record.take_field(column);
+            if less_than_where.evaluate(field.as_ref()) == true {
+                return Ok(pointer_page);
+            }
+        }
+        Ok(self.right_most_pointer)
     }
 }

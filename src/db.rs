@@ -6,7 +6,6 @@
 //!
 use crate::db::dbmetadata::DBMetadata;
 use crate::db::fileformat::PageType;
-use crate::db::fileformat::interior_index::InteriorIndex;
 use crate::db::fileformat::interior_page::InteriorPage;
 use crate::db::fileformat::page::Page;
 use crate::db::fileformat::record::Record;
@@ -68,11 +67,8 @@ impl DB {
         // Retrieve all indexes pointers
         let index = table.indexes.first().unwrap();
         let root_page = index.get_root_page();
-        let PageType::InteriorIndex(page) = self.get_page(root_page)? else {
-            panic!();
-        };
         let mut retval = vec![];
-        let Some(pointer_page) = self.traverse_btree_index(page, index, where_clause)? else {
+        let Some(pointer_page) = self.traverse_btree_index(root_page, index, where_clause)? else {
             return Ok(vec![]);
         };
         let mut index_values = self.get_index_values(pointer_page, index, where_clause)?;
@@ -87,8 +83,6 @@ impl DB {
                 }
             }
         }
-        // 1. Get index and apply where => return a list of rowid
-        // 2. Retrieve each row using self.get_rowid(rowid)
 
         Ok(retval)
     }
@@ -136,31 +130,22 @@ impl DB {
 
     fn traverse_btree_index<'a>(
         &mut self,
-        page: InteriorIndex,
+        page_number: usize,
         index: &'a Table,
         where_clause: &Where,
     ) -> Result<Option<usize>> {
-        let pointers = page.get_all_pointers()?;
-        for pointer_page in pointers {
-            let page = self.get_page(pointer_page)?;
-            match page {
-                PageType::InteriorIndex(page) => {
-                    if let Some(_) = page.is_where(where_clause, index)? {
-                        return Ok(Some(pointer_page));
-                    }
-                    return self.traverse_btree_index(page, index, where_clause);
+        let page = self.get_page(page_number)?;
+        match page {
+            PageType::InteriorIndex(page) => {
+                if let Some(_) = page.is_where(where_clause, index)? {
+                    return Ok(Some(page_number));
                 }
-                PageType::LeafIndex(page) => {
-                    if let Some(_) = page.is_where(where_clause, index)? {
-                        return Ok(Some(pointer_page));
-                    } else {
-                        return Ok(None);
-                    }
-                }
-                _ => panic!(),
+                let next_page = page.get_next_page(where_clause, index)?;
+                return self.traverse_btree_index(next_page, index, where_clause);
             }
+            PageType::LeafIndex(_) => return Ok(Some(page_number)),
+            _ => panic!(),
         }
-        Ok(None)
     }
 
     fn get_record<'a>(
