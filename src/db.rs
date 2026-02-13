@@ -70,9 +70,9 @@ impl DB {
         let mut index_values = self.traverse_btree_index(root_page, index, where_clause)?;
 
         // Gettin records from table
+        let root_page = table.get_root_page();
         for rowid in index_values.iter_mut() {
-            let root_page = table.get_root_page();
-            if let Some(value) = self.get_record(root_page, *rowid as usize, table) {
+            if let Some(value) = self.get_record(root_page, *rowid as usize, table)? {
                 retval.push(value);
             }
         }
@@ -86,7 +86,6 @@ impl DB {
         index: &'a Table,
         where_clause: &Where,
     ) -> Result<Vec<usize>> {
-        println!("{:x}", page_number);
         let mut rowids = vec![];
         let page = self.get_page(page_number)?;
         match page {
@@ -120,27 +119,21 @@ impl DB {
         page_number: usize,
         rowid: usize,
         table: &'a Table,
-    ) -> Option<Record<'a>> {
+    ) -> Result<Option<Record<'a>>> {
         let page = self.get_page(page_number).unwrap();
         match page {
             PageType::Page(page) => {
                 for i in 0..page.get_record_number() {
                     let record = page.get_nth_record(i, table).unwrap();
                     if record.rowid == rowid {
-                        return Some(record);
+                        return Ok(Some(record));
                     }
                 }
-                None
+                Ok(None)
             }
             PageType::InteriorPage(page) => {
-                let pointers = page.get_all_pointers().unwrap();
-                for pointer in pointers {
-                    match self.get_record(pointer, rowid, table) {
-                        Some(record) => return Some(record),
-                        None => continue,
-                    }
-                }
-                None
+                let page_number = page.get_next_page_number(rowid)?;
+                return self.get_record(page_number, rowid, table);
             }
             _ => panic!(),
         }

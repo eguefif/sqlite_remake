@@ -19,6 +19,8 @@ use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
 use std::io::Cursor;
 
+use crate::db::fileformat::types::Varint;
+
 pub struct InteriorPage {
     buffer: Vec<u8>,
     pub page_number: usize,
@@ -102,5 +104,20 @@ impl InteriorPage {
         index_pointers.push(self.right_most_pointer);
 
         Ok(index_pointers)
+    }
+
+    pub fn get_next_page_number(&self, rowid: usize) -> Result<usize> {
+        let cells_buffer = self.get_cell_pointer_array();
+        let mut cursor = Cursor::new(cells_buffer);
+        for _ in 0..self.cell_number {
+            let cell_pointer = cursor.read_u16::<BigEndian>()? as usize;
+            let mut cell_cursor = Cursor::new(&self.buffer[cell_pointer..]);
+            let page_pointer = cell_cursor.read_u32::<BigEndian>()?;
+            let cell_rowid = Varint::from_cursor(&mut cell_cursor)?;
+            if rowid <= cell_rowid.varint as usize {
+                return Ok(page_pointer as usize);
+            }
+        }
+        Ok(self.right_most_pointer as usize)
     }
 }
