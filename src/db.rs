@@ -10,7 +10,6 @@ use crate::db::fileformat::interior_page::InteriorPage;
 use crate::db::fileformat::page::Page;
 use crate::db::fileformat::record::Record;
 use crate::db::table::Table;
-use crate::executor::db_response::RType;
 use crate::parser::where_clause::Where;
 use anyhow::Result;
 use std::fs::File;
@@ -68,60 +67,13 @@ impl DB {
         let index = table.indexes.first().unwrap();
         let root_page = index.get_root_page();
         let mut retval = vec![];
-        let Some(pointer_page) = self.traverse_btree_index(root_page, index, where_clause)? else {
-            return Ok(vec![]);
-        };
-        let mut index_values = self.get_index_values(pointer_page, index, where_clause)?;
+        let mut index_values = self.traverse_btree_index(root_page, index, where_clause)?;
 
-        // For each pointers, check if they match the where clause
-        for index in index_values.iter_mut() {
-            let fields = index.take_fields();
-            if let RType::Num(rowid) = fields.get("rowid").unwrap() {
-                let root_page = table.get_root_page();
-                if let Some(value) = self.get_record(root_page, *rowid as usize, table) {
-                    retval.push(value);
-                }
-            }
-        }
-
-        Ok(retval)
-    }
-
-    fn get_index_values<'a>(
-        &mut self,
-        mut pointer_page: usize,
-        table: &'a Table,
-        where_clause: &Where,
-    ) -> Result<Vec<Record<'a>>> {
-        let mut retval = vec![];
-        let column = where_clause.get_identifier().unwrap();
-        'outer: loop {
-            match self.get_page(pointer_page)? {
-                PageType::InteriorIndex(page) => loop {
-                    if let Some(pointer) = page.is_where(where_clause, table)? {
-                        let Ok((pointer_p, record)) = page.get_nth_record(pointer, table) else {
-                            break;
-                        };
-                        retval.push(record);
-                        pointer_page = pointer_p;
-                        break;
-                    }
-                },
-
-                PageType::LeafIndex(page) => {
-                    if let Some(pointer) = page.is_where(where_clause, table)? {
-                        for i in pointer..page.get_record_number() {
-                            let record = page.get_nth_record(i, table)?;
-                            let field = record.get_field(column);
-                            if where_clause.evaluate(field) == false {
-                                break 'outer;
-                            }
-                            retval.push(record);
-                        }
-                    }
-                    pointer_page += 1;
-                }
-                _ => panic!(),
+        // Gettin records from table
+        for rowid in index_values.iter_mut() {
+            let root_page = table.get_root_page();
+            if let Some(value) = self.get_record(root_page, *rowid as usize, table) {
+                retval.push(value);
             }
         }
 
@@ -133,19 +85,34 @@ impl DB {
         page_number: usize,
         index: &'a Table,
         where_clause: &Where,
-    ) -> Result<Option<usize>> {
+    ) -> Result<Vec<usize>> {
+        println!("{:x}", page_number);
+        let mut rowids = vec![];
         let page = self.get_page(page_number)?;
         match page {
             PageType::InteriorIndex(page) => {
-                if let Some(_) = page.is_where(where_clause, index)? {
-                    return Ok(Some(page_number));
+                let (next_page, record) = page.get_next_page_pointer(where_clause, index)?;
+                if let Some(mut record) = record {
+                    rowids.append(&mut record);
                 }
-                let next_page = page.get_next_page(where_clause, index)?;
-                return self.traverse_btree_index(next_page, index, where_clause);
+                let mut new_rowds = self.traverse_btree_index(next_page, index, where_clause)?;
+                rowids.append(&mut new_rowds);
+                return Ok(rowids);
             }
-            PageType::LeafIndex(_) => return Ok(Some(page_number)),
+            PageType::LeafIndex(page) => {
+                let mut records = page.get_pointers(where_clause, index)?;
+
+                if records.len() == 0 {
+                    return Ok(records);
+                }
+                let mut new_rowids =
+                    self.traverse_btree_index(page_number + 1, index, where_clause)?;
+                records.append(&mut new_rowids);
+                return Ok(records);
+            }
             _ => panic!(),
         }
+        //Err(anyhow!("Not supposed to happend"))
     }
 
     fn get_record<'a>(

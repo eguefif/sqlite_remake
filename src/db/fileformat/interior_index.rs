@@ -11,6 +11,7 @@ use std::io::Cursor;
 
 use crate::{
     db::{fileformat::record::Record, table::Table},
+    executor::db_response::RType,
     parser::{token::Token, where_clause::Where},
 };
 
@@ -151,27 +152,25 @@ impl InteriorIndex {
         Ok((pointer_page, record))
     }
 
-    pub fn is_where<'a>(&self, where_clause: &Where, table: &'a Table) -> Result<Option<usize>> {
+    pub fn get_next_page_pointer<'a>(
+        &self,
+        where_clause: &Where,
+        table: &'a Table,
+    ) -> Result<(usize, Option<Vec<usize>>)> {
         let cell_array = self.get_cell_pointer_array();
         let mut cursor = Cursor::new(cell_array);
 
-        for i in 0..self.get_record_number() {
-            let offset = cursor.read_u16::<BigEndian>()? as usize;
-            let mut record = Record::new(&self.get_slice(offset + 4, None), table, false)?;
-            let column = where_clause.get_identifier().unwrap();
-            let field = record.take_field(column);
-            if where_clause.evaluate(field.as_ref()) == true {
-                return Ok(Some(i));
-            }
-        }
-        Ok(None)
-    }
+        let less_than_where = Where::from_where(where_clause, Token::LT);
 
-    pub fn get_next_page<'a>(&self, where_clause: &Where, table: &'a Table) -> Result<usize> {
-        let cell_array = self.get_cell_pointer_array();
-        let mut cursor = Cursor::new(cell_array);
+        //let offset = cursor.read_u16::<BigEndian>()? as usize;
+        //let mut buf_cursor = Cursor::new(&self.buffer[offset as usize..]);
+        //let pointer_page = buf_cursor.read_u32::<BigEndian>()? as usize;
 
-        let less_than_where = Where::from_where(where_clause, Token::LTEQ);
+        //let mut record = Record::new(&self.get_slice(offset + 4, None), table, false)?;
+
+        //let rowid = get_rowid(&mut record);
+        //let mut last_records: (usize, usize) = (pointer_page, rowid);
+        let mut rowids = vec![];
         for _ in 0..self.get_record_number() {
             let offset = cursor.read_u16::<BigEndian>()? as usize;
             let mut buf_cursor = Cursor::new(&self.buffer[offset as usize..]);
@@ -179,12 +178,33 @@ impl InteriorIndex {
 
             let mut record = Record::new(&self.get_slice(offset + 4, None), table, false)?;
 
+            let rowid = get_rowid(&mut record);
             let column = where_clause.get_identifier().unwrap();
             let field = record.take_field(column);
-            if less_than_where.evaluate(field.as_ref()) == true {
-                return Ok(pointer_page);
+            if compare(where_clause, field.as_ref()) == true {
+                println!("==");
+                rowids.push(rowid);
+            } else if compare(&less_than_where, field.as_ref()) == true {
+                return Ok((pointer_page, None));
             }
         }
-        Ok(self.right_most_pointer)
+        Ok((self.right_most_pointer, None))
     }
+}
+
+fn compare(where_clause: &Where, field: Option<&RType>) -> bool {
+    if where_clause.evaluate(field) == true {
+        return true;
+    }
+    false
+}
+
+fn get_rowid(record: &mut Record) -> usize {
+    let field = record
+        .take_field("rowid")
+        .expect("There iw always a rowid field");
+    if let RType::Num(rowid) = field {
+        return rowid as usize;
+    }
+    panic!("Should always have a rowid of type RTYpe::Num");
 }

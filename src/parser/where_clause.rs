@@ -80,6 +80,24 @@ impl Where {
                     return self.left == self.right;
                 }
             }
+            Token::GT => {
+                if let Some(value) = value {
+                    let left: RType = self.right.into_rtype();
+                    &left > value
+                } else {
+                    self.left == self.right
+                }
+            }
+
+            Token::LT => {
+                if let Some(value) = value {
+                    let left: RType = self.right.into_rtype();
+                    &left < value
+                } else {
+                    self.left == self.right
+                }
+            }
+
             Token::LTEQ => {
                 if let Some(value) = value {
                     let left: RType = self.right.into_rtype();
