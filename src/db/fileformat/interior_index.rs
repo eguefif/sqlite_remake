@@ -5,7 +5,7 @@
 //! The first page is a special page as it contains the database header. It is stored
 //! To write
 //!
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
 use std::io::Cursor;
 
@@ -79,10 +79,11 @@ impl InteriorIndex {
 
     /// cell_pointer_array are pointers to page cells
     /// cells are records
-    fn get_cell_pointer_array(&self) -> &[u8] {
+    fn get_cell_pointer_array(&self, start: Option<usize>) -> &[u8] {
+        let start = (start.unwrap_or(0) * 2) + 12;
         let buffer = self.get_page_buffer();
         let cell_number = self.cell_number;
-        return &buffer[12..12 + cell_number as usize * 2];
+        return &buffer[start..start + cell_number as usize * 2];
     }
 
     /// Get a slice
@@ -96,99 +97,63 @@ impl InteriorIndex {
         }
     }
 
-    pub fn get_all_records<'a>(&self, table: &'a Table) -> Result<Vec<Record<'a>>> {
-        let mut records = vec![];
-        let cells_buffer = self.get_cell_pointer_array();
-        let mut cursor = Cursor::new(cells_buffer);
-        for _ in 0..self.cell_number {
-            let cell_pointer = cursor.read_u16::<BigEndian>()? as usize;
-            let record = Record::new(&self.get_slice(cell_pointer + 4, None), table, false)?;
-            records.push(record);
-        }
-
-        Ok(records)
-    }
-
-    pub fn get_all_pointers(&self) -> Result<Vec<usize>> {
-        let mut index_pointers = vec![];
-        let cells_buffer = self.get_cell_pointer_array();
-        let mut cursor = Cursor::new(cells_buffer);
-        for _ in 0..self.cell_number {
-            let cell_pointer = cursor.read_u16::<BigEndian>()? as usize;
-            let mut cell_cursor = Cursor::new(&self.buffer[cell_pointer..cell_pointer + 4]);
-            let pointer = cell_cursor.read_u32::<BigEndian>()?;
-            index_pointers.push(pointer as usize);
-        }
-        index_pointers.push(self.right_most_pointer);
-
-        Ok(index_pointers)
-    }
-
-    pub fn get_record_number(&self) -> usize {
-        self.cell_number
-    }
-
-    /// This function is used to iterate over records in a page
-    pub fn get_nth_record<'a>(
-        &self,
-        index: usize,
-        schema_table: &'a Table,
-    ) -> Result<(usize, Record<'a>)> {
-        if index > self.get_record_number() {
-            return Err(anyhow!(""));
-        }
-        let cell_array_offset = index * 2;
-        let cell_array = self.get_cell_pointer_array();
-        let mut cursor = Cursor::new(&cell_array[cell_array_offset..]);
-        let offset = cursor.read_u16::<BigEndian>()? as usize;
-        let mut buf_cursor = Cursor::new(&self.buffer[offset as usize..]);
-        let pointer_page = buf_cursor.read_u32::<BigEndian>()? as usize;
-        let record = Record::new(
-            &self.get_slice(offset + 4 as usize, None),
-            schema_table,
-            false,
-        )
-        .expect("Error: indexing record, file parsing failed");
-        Ok((pointer_page, record))
-    }
-
     pub fn get_next_page_pointer<'a>(
         &self,
         where_clause: &Where,
         table: &'a Table,
     ) -> Result<(usize, Option<Vec<usize>>)> {
-        let cell_array = self.get_cell_pointer_array();
+        //print_page(&self.buffer);
+        let cell_array = self.get_cell_pointer_array(None);
         let mut cursor = Cursor::new(cell_array);
 
         let less_than_where = Where::from_where(where_clause, Token::LT);
 
-        //let offset = cursor.read_u16::<BigEndian>()? as usize;
-        //let mut buf_cursor = Cursor::new(&self.buffer[offset as usize..]);
-        //let pointer_page = buf_cursor.read_u32::<BigEndian>()? as usize;
-
-        //let mut record = Record::new(&self.get_slice(offset + 4, None), table, false)?;
-
-        //let rowid = get_rowid(&mut record);
-        //let mut last_records: (usize, usize) = (pointer_page, rowid);
         let mut rowids = vec![];
-        for _ in 0..self.get_record_number() {
-            let offset = cursor.read_u16::<BigEndian>()? as usize;
-            let mut buf_cursor = Cursor::new(&self.buffer[offset as usize..]);
-            let pointer_page = buf_cursor.read_u32::<BigEndian>()? as usize;
+        for i in 0..self.cell_number {
+            let cell_offset = cursor.read_u16::<BigEndian>()? as usize;
+            let mut cell_buffer = Cursor::new(&self.buffer[cell_offset as usize..]);
+            let pointer_page = cell_buffer.read_u32::<BigEndian>()? as usize;
 
-            let mut record = Record::new(&self.get_slice(offset + 4, None), table, false)?;
+            let mut record = Record::new(&self.get_slice(cell_offset + 4, None), table, false)?;
 
             let rowid = get_rowid(&mut record);
             let column = where_clause.get_identifier().unwrap();
             let field = record.take_field(column);
+            if field == Some(RType::Null) {
+                continue;
+            }
             if compare(where_clause, field.as_ref()) == true {
-                println!("==");
                 rowids.push(rowid);
+                if self.check_next(where_clause, i, table) == false {
+                    return Ok((pointer_page, Some(rowids)));
+                }
             } else if compare(&less_than_where, field.as_ref()) == true {
                 return Ok((pointer_page, None));
             }
         }
         Ok((self.right_most_pointer, None))
+    }
+
+    fn check_next(&self, where_clause: &Where, cell_number: usize, table: &Table) -> bool {
+        let cell_array = self.get_cell_pointer_array(Some(cell_number));
+        let mut cursor = Cursor::new(cell_array);
+        let Ok(cell_offset) = cursor.read_u16::<BigEndian>() else {
+            return false;
+        };
+        let mut cell_buffer = Cursor::new(&self.buffer[cell_offset as usize..]);
+        let _ = cell_buffer.read_u32::<BigEndian>();
+
+        let Ok(mut record) = Record::new(
+            &self.get_slice(cell_offset as usize + 4, None),
+            table,
+            false,
+        ) else {
+            return false;
+        };
+
+        let column = where_clause.get_identifier().unwrap();
+        let field = record.take_field(column);
+        compare(where_clause, field.as_ref())
     }
 }
 
@@ -207,4 +172,54 @@ fn get_rowid(record: &mut Record) -> usize {
         return rowid as usize;
     }
     panic!("Should always have a rowid of type RTYpe::Num");
+}
+
+#[allow(dead_code)]
+fn print_page(buffer: &[u8]) {
+    let mut offset = 0;
+    let mut iter = buffer.iter();
+    let mut last_row: Vec<&u8> = vec![];
+    let mut flag = true;
+    'outer: loop {
+        let mut row = vec![];
+        for _ in 0..16 {
+            let Some(byte) = iter.next() else {
+                break 'outer;
+            };
+            row.push(byte);
+        }
+        if last_row == row {
+            if flag {
+                println!("*");
+                flag = false;
+            }
+        } else {
+            print_offset(offset);
+            flag = true;
+
+            for (i, byte) in row.iter().enumerate() {
+                print!("{:0<2x?} ", byte);
+                if (i + 1) % 8 == 0 {
+                    print!("    ");
+                }
+                offset += 1;
+            }
+            print!("  |");
+            for byte in row.iter() {
+                if byte.is_ascii_alphanumeric() {
+                    print!("{}", **byte as char);
+                } else {
+                    print!(".");
+                }
+            }
+            print!("|");
+            println!("");
+            last_row = row;
+        }
+    }
+    println!("");
+}
+
+fn print_offset(offset: usize) {
+    print!("{:0>5x} : ", offset)
 }

@@ -69,7 +69,7 @@ impl DB {
         let mut retval = vec![];
         let mut index_values = self.traverse_btree_index(root_page, index, where_clause)?;
 
-        // Gettin records from table
+        // Getting records from table
         let root_page = table.get_root_page();
         for rowid in index_values.iter_mut() {
             if let Some(value) = self.get_record(root_page, *rowid as usize, table)? {
@@ -86,10 +86,10 @@ impl DB {
         index: &'a Table,
         where_clause: &Where,
     ) -> Result<Vec<usize>> {
-        let mut rowids = vec![];
         let page = self.get_page(page_number)?;
         match page {
             PageType::InteriorIndex(page) => {
+                let mut rowids = vec![];
                 let (next_page, record) = page.get_next_page_pointer(where_clause, index)?;
                 if let Some(mut record) = record {
                     rowids.append(&mut record);
@@ -99,19 +99,18 @@ impl DB {
                 return Ok(rowids);
             }
             PageType::LeafIndex(page) => {
-                let mut records = page.get_pointers(where_clause, index)?;
+                let mut page_pointers = page.get_pointers(where_clause, index)?;
 
-                if records.len() == 0 {
-                    return Ok(records);
+                if page_pointers.len() == 0 {
+                    return Ok(page_pointers);
                 }
                 let mut new_rowids =
                     self.traverse_btree_index(page_number + 1, index, where_clause)?;
-                records.append(&mut new_rowids);
-                return Ok(records);
+                page_pointers.append(&mut new_rowids);
+                return Ok(page_pointers);
             }
             _ => panic!(),
         }
-        //Err(anyhow!("Not supposed to happend"))
     }
 
     fn get_record<'a>(
