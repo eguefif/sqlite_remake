@@ -6,7 +6,6 @@
 //!
 use crate::db::dbmetadata::DBMetadata;
 use crate::db::fileformat::PageType;
-use crate::db::fileformat::interior_page::InteriorPage;
 use crate::db::fileformat::page::Page;
 use crate::db::fileformat::record::Record;
 use crate::db::table::Table;
@@ -138,36 +137,35 @@ impl DB {
         }
     }
 
-    pub fn seq_scan<'a>(&mut self, table: &'a Table) -> Result<Vec<Record<'a>>> {
-        let page = self.get_page(table.get_root_page())?;
-
-        match page {
-            PageType::InteriorPage(page) => self.traverse_btree(page, table),
-            PageType::Page(page) => page.get_all_records(table),
-            _ => panic!(),
-        }
+    pub fn seq_scan<'a>(
+        &mut self,
+        where_clause: &Option<Where>,
+        table: &'a Table,
+    ) -> Result<Vec<Record<'a>>> {
+        let page_number = table.get_root_page();
+        self.traverse_btree(page_number, table, where_clause)
     }
 
     fn traverse_btree<'a>(
         &mut self,
-        page: InteriorPage,
+        page_number: usize,
         table: &'a Table,
+        where_clause: &Option<Where>,
     ) -> Result<Vec<Record<'a>>> {
+        let page = self.get_page(page_number)?;
         let mut retval = vec![];
-        let pointers = page.get_all_pointers()?;
-        for pointer in pointers {
-            let page = self.get_page(pointer)?;
-            match page {
-                PageType::Page(page) => {
-                    let mut records = page.get_all_records(table)?;
-                    retval.append(&mut records)
-                }
-                PageType::InteriorPage(page) => {
-                    let mut records = self.traverse_btree(page, table)?;
-                    retval.append(&mut records)
-                }
-                _ => panic!(),
+        match page {
+            PageType::Page(page) => {
+                let mut records = page.get_all_records(where_clause, table)?;
+                retval.append(&mut records)
             }
+            PageType::InteriorPage(page) => {
+                for pointer in page.get_all_pointers()? {
+                    let mut records = self.traverse_btree(pointer, table, where_clause)?;
+                    retval.append(&mut records)
+                }
+            }
+            _ => panic!(),
         }
         Ok(retval)
     }

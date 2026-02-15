@@ -71,7 +71,7 @@ impl Executor {
             Plan::IndexScan(where_clause) => self.index_scan(where_clause, &table)?,
             Plan::SeqScan => self.seq_scan(&query, &table)?,
         };
-        // If no index, full scan
+
         let response = records
             .into_iter()
             .map(|record| apply_select_clause(record, &query.select_clause, &table))
@@ -106,18 +106,8 @@ impl Executor {
         query: &SelectStatement,
         table: &'a Table,
     ) -> Result<Vec<Record<'a>>> {
-        let records = self.db.seq_scan(&table)?;
-        let response = records
-            .into_iter()
-            .filter(|record| {
-                if let Some(where_clause) = &query.where_clause {
-                    apply_where_clause(record, &where_clause)
-                } else {
-                    true
-                }
-            })
-            .collect::<Vec<_>>();
-        Ok(response)
+        let records = self.db.seq_scan(&query.where_clause, &table)?;
+        Ok(records)
     }
 }
 
@@ -126,15 +116,6 @@ fn execute_function(records: &Response, func: &FuncCall) -> Vec<RType> {
         "count" => vec![RType::Num(records.len() as i64)],
         _ => vec![],
     }
-}
-
-fn apply_where_clause(record: &Record, where_clause: &Where) -> bool {
-    // For now, we assume there is only one identifier in the where clause
-    if let Some(identifier) = where_clause.get_identifier() {
-        let identifier_value = record.get_column_value(identifier);
-        return where_clause.evaluate(Some(identifier_value));
-    };
-    where_clause.evaluate(None)
 }
 
 fn apply_select_clause(

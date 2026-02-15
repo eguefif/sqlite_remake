@@ -157,7 +157,7 @@ impl InteriorIndex {
     }
 }
 
-fn compare(where_clause: &Where, field: Option<&RType>) -> bool {
+pub fn compare(where_clause: &Where, field: Option<&RType>) -> bool {
     if where_clause.evaluate(field) == true {
         return true;
     }

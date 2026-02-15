@@ -15,7 +15,13 @@
 //! A `cell` contains a record. See [Record] module for more information about records.
 //! But Cell format depends on the BTree type. See 1.6. B-tree Pages in
 //! [Sqlite fileformat documentation](https://www.sqlite.org/fileformat.html)
-use crate::db::{fileformat::record::Record, table::Table};
+use crate::{
+    db::{
+        fileformat::{interior_index::compare, record::Record},
+        table::Table,
+    },
+    parser::where_clause::Where,
+};
 use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
 use std::io::Cursor;
@@ -105,7 +111,11 @@ impl Page {
         }
     }
 
-    pub fn get_all_records<'a>(&self, table: &'a Table) -> Result<Vec<Record<'a>>> {
+    pub fn get_all_records<'a>(
+        &self,
+        where_clause: &Option<Where>,
+        table: &'a Table,
+    ) -> Result<Vec<Record<'a>>> {
         let mut rows = vec![];
         let cell_array = self.get_cell_pointer_array();
         let mut cursor = Cursor::new(cell_array);
@@ -113,7 +123,15 @@ impl Page {
         for _ in 0..self.get_record_number() {
             let offset = cursor.read_u16::<BigEndian>()? as usize;
             let record = Record::new(&self.get_slice(offset, None), table, true)?;
-            rows.push(record);
+            if let Some(where_clause) = where_clause {
+                let column = where_clause.get_identifier().unwrap();
+                let field = record.get_field(column);
+                if compare(where_clause, field) {
+                    rows.push(record);
+                }
+            } else {
+                rows.push(record);
+            }
         }
 
         Ok(rows)
