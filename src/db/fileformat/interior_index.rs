@@ -98,6 +98,7 @@ impl InteriorIndex {
             let mut record = Record::new(&self.get_slice(cell_offset + 4, None), table, false)?;
 
             let rowid = get_rowid(&mut record);
+            // TODO: check unwrap
             let column = where_clause.get_identifier().unwrap();
             let field = record.take_field(column);
             if field == Some(RType::Null) {
@@ -132,6 +133,7 @@ impl InteriorIndex {
             return false;
         };
 
+        // TODO: Check unwrap
         let column = where_clause.get_identifier().unwrap();
         let field = record.take_field(column);
         compare(where_clause, field.as_ref())

@@ -83,6 +83,7 @@ impl Page {
             let offset = cursor.read_u16::<BigEndian>()? as usize;
             let record = Record::new(&self.get_slice(offset, None), table, true)?;
             if let Some(where_clause) = where_clause {
+                //TODO: Check unwrap
                 let column = where_clause.get_identifier().unwrap();
                 let field = record.get_field(column);
                 if compare(where_clause, field) {

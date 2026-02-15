@@ -63,6 +63,7 @@ impl DB {
         where_clause: &Where,
     ) -> Result<Vec<Record<'a>>> {
         // Retrieve all indexes pointers
+        // TODO: Remove unwrap
         let index = table.indexes.first().unwrap();
         let root_page = index.get_root_page();
         let mut retval = vec![];
@@ -118,10 +119,12 @@ impl DB {
         rowid: usize,
         table: &'a Table,
     ) -> Result<Option<Record<'a>>> {
+        // TODO: Check unwrap
         let page = self.get_page(page_number).unwrap();
         match page {
             PageType::Page(page) => {
                 for i in 0..page.get_record_number() {
+                    // TODO: Check unwrap
                     let record = page.get_nth_record(i, table).unwrap();
                     if record.rowid == rowid {
                         return Ok(Some(record));

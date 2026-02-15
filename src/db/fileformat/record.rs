@@ -108,6 +108,7 @@ impl<'a> Record<'a> {
     }
 
     pub fn get_column_value(&self, key: &str) -> &RType {
+        // TODO: Check unwrap
         &self.fields.get(key).unwrap()
     }
 }

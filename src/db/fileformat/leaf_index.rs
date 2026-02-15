@@ -67,9 +67,11 @@ impl LeafIndex {
 
             let mut record = Record::new(&self.get_slice(offset, None), table, false)?;
 
+            // TODO: Check unwrap
             let column = where_clause.get_identifier().unwrap();
             let field = record.take_field(column);
             if where_clause.evaluate(field.as_ref()) {
+                // TODO: Check unwrap
                 if let RType::Num(rowid) = record.take_field("rowid").unwrap() {
                     retval.push(rowid as usize);
                 }

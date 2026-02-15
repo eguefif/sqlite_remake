@@ -5,6 +5,9 @@ use codecrafters_sqlite::{
     parser::statement::Statement,
 };
 
+// TODO: check unwraps
+// TODO: Refactor logic interior index
+
 fn main() -> Result<()> {
     // Parse arguments
     let args = std::env::args().collect::<Vec<_>>();
