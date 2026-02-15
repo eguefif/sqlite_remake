@@ -13,6 +13,11 @@ use anyhow::{Result, anyhow};
 
 pub mod db_response;
 
+enum Plan<'a> {
+    IndexScan(&'a Where),
+    SeqScan,
+}
+
 pub struct Executor {
     db: DB,
 }
@@ -61,17 +66,46 @@ impl Executor {
         };
 
         // Check for index and use it
+        let plan = self.plan_execution(query, &table);
+        let records = match plan {
+            Plan::IndexScan(where_clause) => self.index_scan(where_clause, &table)?,
+            Plan::SeqScan => self.seq_scan(&query, &table)?,
+        };
+        // If no index, full scan
+        let response = records
+            .into_iter()
+            .map(|record| apply_select_clause(record, &query.select_clause, &table))
+            .collect::<Result<Response>>()?;
+
+        if let Some(func) = query.select_clause.get_function() {
+            Ok(Some(vec![execute_function(&response, func)]))
+        } else {
+            Ok(Some(response))
+        }
+    }
+
+    fn plan_execution<'a>(&self, query: &'a SelectStatement, table: &Table) -> Plan<'a> {
         if let Some(where_clause) = &query.where_clause {
             if table.has_index_on(where_clause) {
-                let records = self.db.index_scan(&table, where_clause)?;
-                let response = records
-                    .into_iter()
-                    .map(|record| apply_select_clause(record, &query.select_clause, &table))
-                    .collect::<Result<Response>>()?;
-                return Ok(Some(response));
+                return Plan::IndexScan(where_clause);
             }
         }
-        // If no index, full scan
+        Plan::SeqScan
+    }
+
+    fn index_scan<'a>(
+        &mut self,
+        where_clause: &Where,
+        table: &'a Table,
+    ) -> Result<Vec<Record<'a>>> {
+        self.db.index_scan(&table, where_clause)
+    }
+
+    fn seq_scan<'a>(
+        &mut self,
+        query: &SelectStatement,
+        table: &'a Table,
+    ) -> Result<Vec<Record<'a>>> {
         let records = self.db.seq_scan(&table)?;
         let response = records
             .into_iter()
@@ -82,14 +116,8 @@ impl Executor {
                     true
                 }
             })
-            .map(|record| apply_select_clause(record, &query.select_clause, &table))
-            .collect::<Result<Response>>()?;
-
-        if let Some(func) = query.select_clause.get_function() {
-            Ok(Some(vec![execute_function(&response, func)]))
-        } else {
-            Ok(Some(response))
-        }
+            .collect::<Vec<_>>();
+        Ok(response)
     }
 }
 
