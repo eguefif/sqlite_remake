@@ -1,19 +1,5 @@
-//! Module that contains the sqlite page structure
+//! Module that contains the sqlite interior page structure
 //!
-//! A page can be of different types, see [PageType] enum.
-//!
-//! The first page is a special page as it contains the database header. It is stored
-//! in the first 100 bytes of the file. The rest of the page is a normal page.
-//! Note that for this page, the page header starts at 100 but the record offsets
-//! are relative to the start of the page (0).
-//!
-//! For now, we only suport B-Tree pages
-//! A page is composed of the following:
-//! * a header [PageHeader]
-//! * a cell pointer array: array of u16 offsets to the cells
-//!
-//! A `cell` contains a record. See [Record] module for more information about records.
-//! But Cell format depends on the BTree type. See 1.6. B-tree Pages in
 //! [Sqlite fileformat documentation](https://www.sqlite.org/fileformat.html)
 use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
@@ -71,26 +57,6 @@ impl InteriorPage {
         }
     }
 
-    /// Utility functions to automatically skip the first 100 bytes header
-    /// if the page is the first page
-    fn get_page_buffer(&self) -> &[u8] {
-        // The first page contains the db metadata. It span from the byte 0
-        // to the byte 100
-        if self.page_number == 1 {
-            &self.buffer[100..]
-        } else {
-            &self.buffer
-        }
-    }
-
-    /// cell_pointer_array are pointers to page cells
-    /// cells are records
-    fn get_cell_pointer_array(&self) -> &[u8] {
-        let buffer = self.get_page_buffer();
-        let cell_number = self.cell_number;
-        return &buffer[12..12 + cell_number as usize * 2];
-    }
-
     pub fn get_all_pointers(&self) -> Result<Vec<usize>> {
         let mut index_pointers = vec![];
         let cells_buffer = self.get_cell_pointer_array();
@@ -119,5 +85,25 @@ impl InteriorPage {
             }
         }
         Ok(self.right_most_pointer as usize)
+    }
+
+    /// Utility functions to automatically skip the first 100 bytes header
+    /// if the page is the first page
+    fn get_page_buffer(&self) -> &[u8] {
+        // The first page contains the db metadata. It span from the byte 0
+        // to the byte 100
+        if self.page_number == 1 {
+            &self.buffer[100..]
+        } else {
+            &self.buffer
+        }
+    }
+
+    /// cell_pointer_array are pointers to page cells
+    /// cells are records
+    fn get_cell_pointer_array(&self) -> &[u8] {
+        let buffer = self.get_page_buffer();
+        let cell_number = self.cell_number;
+        return &buffer[12..12 + cell_number as usize * 2];
     }
 }

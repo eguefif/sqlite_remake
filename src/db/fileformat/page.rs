@@ -16,11 +16,8 @@
 //! But Cell format depends on the BTree type. See 1.6. B-tree Pages in
 //! [Sqlite fileformat documentation](https://www.sqlite.org/fileformat.html)
 use crate::{
-    db::{
-        fileformat::{interior_index::compare, record::Record},
-        table::Table,
-    },
-    parser::where_clause::Where,
+    db::{fileformat::record::Record, table::Table},
+    parser::where_clause::{Where, compare},
 };
 use anyhow::Result;
 use byteorder::{BigEndian, ReadBytesExt};
@@ -73,44 +70,6 @@ impl Page {
         }
     }
 
-    /// Utility functions to automatically skip the first 100 bytes header
-    /// if the page is the first page
-    fn get_page_buffer(&self) -> &[u8] {
-        // The first page contains the db metadata. It span from the byte 0
-        // to the byte 100
-        if self.page_number == 1 {
-            &self.buffer[100..]
-        } else {
-            &self.buffer
-        }
-    }
-
-    /// Get the number of records in the page
-    /// A Cell contains a record, therefore, the number of record
-    /// is the number of cells in the page
-    pub fn get_record_number(&self) -> usize {
-        self.cell_number
-    }
-
-    /// cell_pointer_array are pointers to page cells
-    /// cells are records
-    pub fn get_cell_pointer_array(&self) -> &[u8] {
-        let buffer = self.get_page_buffer();
-        let cell_number = self.cell_number;
-        return &buffer[8..8 + cell_number as usize * 2];
-    }
-
-    /// Get a slice
-    /// This function does not automaticaly shift the offset to after the file header
-    /// in case of the page is the first page. This functions is used mostly to retrieve record
-    pub fn get_slice(&self, start: usize, end: Option<usize>) -> &[u8] {
-        if let Some(end_range) = end {
-            &self.buffer[start..end_range]
-        } else {
-            &self.buffer[start..]
-        }
-    }
-
     pub fn get_all_records<'a>(
         &self,
         where_clause: &Option<Where>,
@@ -146,5 +105,42 @@ impl Page {
         let record = Record::new(&self.get_slice(offset as usize, None), schema_table, true)
             .expect("Error: indexing record, file parsing failed");
         Ok(record)
+    }
+
+    /// Get the number of records in the page
+    /// A Cell contains a record, therefore, the number of record
+    /// is the number of cells in the page
+    pub fn get_record_number(&self) -> usize {
+        self.cell_number
+    }
+
+    /// Utility functions to automatically skip the first 100 bytes header
+    /// if the page is the first page
+    fn get_page_buffer(&self) -> &[u8] {
+        // The first page contains the db metadata. It span from the byte 0
+        // to the byte 100
+        if self.page_number == 1 {
+            &self.buffer[100..]
+        } else {
+            &self.buffer
+        }
+    }
+    /// cell_pointer_array are pointers to page cells
+    /// cells are records
+    fn get_cell_pointer_array(&self) -> &[u8] {
+        let buffer = self.get_page_buffer();
+        let cell_number = self.cell_number;
+        return &buffer[8..8 + cell_number as usize * 2];
+    }
+
+    /// Get a slice
+    /// This function does not automaticaly shift the offset to after the file header
+    /// in case of the page is the first page. This functions is used mostly to retrieve record
+    fn get_slice(&self, start: usize, end: Option<usize>) -> &[u8] {
+        if let Some(end_range) = end {
+            &self.buffer[start..end_range]
+        } else {
+            &self.buffer[start..]
+        }
     }
 }

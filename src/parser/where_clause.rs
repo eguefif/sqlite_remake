@@ -117,6 +117,13 @@ impl fmt::Display for Where {
     }
 }
 
+pub fn compare(where_clause: &Where, field: Option<&RType>) -> bool {
+    if where_clause.evaluate(field) == true {
+        return true;
+    }
+    false
+}
+
 #[cfg(test)]
 
 mod tests {
